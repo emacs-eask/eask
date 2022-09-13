@@ -31,5 +31,7 @@
 
 ;;; Code:
 
+{ SOURCE }
+
 (provide 'eask-api)
 ;;; eask-api.el ends here

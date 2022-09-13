@@ -18,7 +18,13 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      repository: emacs-eask/cli
+
+    - name: Move lisp to HOME
+      run: mv lisp ~/lisp
+
+    - uses: actions/checkout@v3
 
     - uses: jcs090218/setup-emacs@master
       with:
@@ -41,5 +47,5 @@ jobs:
       run: |
         git pull
         git add .
-        git commit -m "Update SVG badges - system"
+        git commit -m "Update source, eask-api.el"
         git push

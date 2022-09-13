@@ -2,6 +2,6 @@
 ;;; Commentary:
 ;;; Code:
 
-;; TODO: ..
+
 
 ;;; generate-api.el ends here
