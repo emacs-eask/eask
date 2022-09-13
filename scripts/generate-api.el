@@ -37,6 +37,7 @@
     (message "Processing file %s..." path)
     (insert "\n")
     (insert ";; " path)
+    (insert "\n")
     (insert
      (with-temp-buffer
        (insert-file-contents path)
