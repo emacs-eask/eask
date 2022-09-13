@@ -7,6 +7,14 @@
 [![Build](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml)
 [![CI](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml)
 
+## 🔨 Usage
+
+Call the following whenever you need to know Eask's API.
+
+```elisp
+(require 'eask-api)
+```
+
 ## Contribute
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
