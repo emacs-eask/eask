@@ -23,7 +23,9 @@ jobs:
         repository: emacs-eask/cli
 
     - name: Move lisp to HOME
-      run: mv lisp ~/lisp
+      run: |
+        mv lisp ~/lisp
+        rm -rf ~/lisp/extern
 
     - uses: actions/checkout@v3
 
