@@ -43,6 +43,11 @@ jobs:
       run:
         make build-source
 
+    - name: Set git config
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+
     - name: Push generated source
       continue-on-error: true
       run: |
