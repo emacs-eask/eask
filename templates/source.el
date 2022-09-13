@@ -30,7 +30,6 @@
 ;;
 
 ;;; Code:
-
 { SOURCE }
 
 (provide 'eask-api)
