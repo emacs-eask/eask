@@ -6,8 +6,12 @@ EASK ?= eask
 ci: clean package install compile
 
 build-source:
-	@echo "Building..."
-	$(EASK) load scripts/generate-api.el --allow-error
+	@echo "Building source..."
+	$(EASK) load "scripts/generate-api.el" --allow-error
+
+generate_badges_system:
+	@echo "Generating system badges.."
+	@$(EASK) load "scripts/generate-badges-system.el"
 
 package:
 	@echo "Packaging..."

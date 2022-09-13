@@ -1,29 +1,23 @@
-name: Build
+name: System
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  REPO_BADGES: 'jcs-emacs/badges'
+
 jobs:
-  build:
+  generate_badge:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        repository: emacs-eask/cli
-
-    - name: Move lisp to HOME
-      run: mv lisp ~/lisp
-
-    - uses: actions/checkout@v3
-
     - uses: jcs090218/setup-emacs@master
       with:
         version: 28.1
@@ -36,19 +30,19 @@ jobs:
       with:
         version: 'snapshot'
 
-    - name: Build source - eask-api.el
-      run:
-        make build-source
+    - uses: actions/checkout@v2
+
+    - name: Generate SVG badges (system)
+      run: make generate_badges_system
 
     - name: Set git config
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
 
-    - name: Push generated source
+    - name: Commit
       continue-on-error: true
       run: |
         git pull
         git add .
-        git commit -m "Update source, eask-api.el"
-        git push
+        git commit -m "Update SVG badges - SYSTEM"
