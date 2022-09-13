@@ -5,6 +5,10 @@ EASK ?= eask
 
 ci: clean package install compile
 
+build-source:
+	@echo "Building..."
+	$(EASK) load scripts/generate-api.el
+
 package:
 	@echo "Packaging..."
 	$(EASK) package
