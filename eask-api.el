@@ -31,7 +31,8 @@
 
 ;;; Code:
 
-;; ~/lisp/checker/check-eask.el(defvar eask--checker-log nil)
+;; ~/lisp/checker/check-eask.el
+(defvar eask--checker-log nil)
 (defun eask--load-buffer ()
   "Return the current loading file session."
   (car (cl-remove-if-not
@@ -52,7 +53,9 @@
         (push (ansi-color-filter-apply log) eask--checker-log)))))
 
 ;; ~/lisp/core/activate.el
-;; ~/lisp/core/archives.el(defvar eask--length-name)
+
+;; ~/lisp/core/archives.el
+(defvar eask--length-name)
 (defvar eask--length-url)
 (defvar eask--length-priority)
 (defun eask--print-archive (archive)
@@ -65,8 +68,11 @@
              name url (or priority 0))))
 
 ;; ~/lisp/core/autoloads.el
+
 ;; ~/lisp/core/clean-all.el
-;; ~/lisp/core/clean-elc.el(defun eask--delete-file (filename)
+
+;; ~/lisp/core/clean-elc.el
+(defun eask--delete-file (filename)
   "Delete FILENAME from disk."
   (eask-with-progress
     (format "Deleting %s... " filename)
@@ -75,7 +81,9 @@
     "done ✓"))
 
 ;; ~/lisp/core/clean.el
-;; ~/lisp/core/compile.el(defun eask--print-compile-log ()
+
+;; ~/lisp/core/compile.el
+(defun eask--print-compile-log ()
   "Print `*Compile-Log*' buffer."
   (when (get-buffer eask-compile-log-buffer-name)
     (with-current-buffer eask-compile-log-buffer-name
@@ -106,7 +114,9 @@
                skipped)))
 
 ;; ~/lisp/core/concat.el
-;; ~/lisp/core/create.el(defun eask--replace-string-in-buffer (old new)
+
+;; ~/lisp/core/create.el
+(defun eask--replace-string-in-buffer (old new)
   "Replace OLD to NEW in buffer."
   (let ((str (buffer-string)))
     (setq str (s-replace old new str))
@@ -120,12 +130,16 @@
   (string-trim (shell-command-to-string "git config user.email")))
 
 ;; ~/lisp/core/emacs.el
+
 ;; ~/lisp/core/eval.el
-;; ~/lisp/core/exec-path.el(defun eask--print-exec-path (path)
+
+;; ~/lisp/core/exec-path.el
+(defun eask--print-exec-path (path)
   "Print out the PATH."
   (message "%s" path))
 
-;; ~/lisp/core/exec.el(defun eask--export-env ()
+;; ~/lisp/core/exec.el
+(defun eask--export-env ()
   "Export environments."
   (let ((epf (expand-file-name "exec-path" eask--homedir))
         (lpf (expand-file-name "load-path" eask--homedir)))
@@ -133,11 +147,13 @@
     (write-region (getenv "PATH") nil epf)
     (write-region (getenv "EMACSLOADPATH") nil lpf)))
 
-;; ~/lisp/core/files.el(defun eask--print-filename (filename)
+;; ~/lisp/core/files.el
+(defun eask--print-filename (filename)
   "Print out the FILENAME."
   (message "%s" filename))
 
-;; ~/lisp/core/info.el(defvar eask--max-offset 0)
+;; ~/lisp/core/info.el
+(defvar eask--max-offset 0)
 (defun eask--print-deps (title dependencies)
   "Print dependencies."
   (when dependencies
@@ -156,7 +172,9 @@
           (eask-debug "    Recipe: %s" (car dep)))))))
 
 ;; ~/lisp/core/install-deps.el
-;; ~/lisp/core/install.el(defun eask--install-packages (names)
+
+;; ~/lisp/core/install.el
+(defun eask--install-packages (names)
   "Install packages."
   (let* ((names (mapcar #'intern names))
          (len (length names)) (s (eask--sinr len "" "s"))
@@ -168,8 +186,11 @@
                installed s skipped)))
 
 ;; ~/lisp/core/keywords.el
+
 ;; ~/lisp/core/list-all.el
-;; ~/lisp/core/list.el(defvar eask--list-pkg-name-offset nil)
+
+;; ~/lisp/core/list.el
+(defvar eask--list-pkg-name-offset nil)
 (defvar eask--list-pkg-version-offset nil)
 (defvar eask--list-pkg-archive-offset nil)
 (defun eask--format-s (offset)
@@ -221,14 +242,19 @@
     (dolist (name list)
       (eask-print-pkg name 0 (or depth (eask-depth) 999) pkg-alist))))
 
-;; ~/lisp/core/load-path.el(defun eask--print-load-path (path)
+;; ~/lisp/core/load-path.el
+(defun eask--print-load-path (path)
   "Print out the PATH."
   (message "%s" path))
 
 ;; ~/lisp/core/load.el
+
 ;; ~/lisp/core/outdated.el
+
 ;; ~/lisp/core/package-directory.el
-;; ~/lisp/core/package.el(defun eask-package-dir--patterns ()
+
+;; ~/lisp/core/package.el
+(defun eask-package-dir--patterns ()
   "Return patterns for directory recipe."
   (if eask-files
       (if (member eask-package-file (eask-expand-file-specs (eask-files-spec)))
@@ -261,7 +287,8 @@
   (if (eask-package-multi-p) (eask--packaged-file "tar")
     (eask--packaged-file "el")))
 
-;; ~/lisp/core/pkg-file.el(defvar eask--pkg-filename)
+;; ~/lisp/core/pkg-file.el
+(defvar eask--pkg-filename)
 (defun eask--generate-from-pkg-desc ()
   "Generate pkg-file from a package-descriptor."
   (let* ((name (package-desc-name eask-package-desc))
@@ -286,8 +313,11 @@
      nil pkg-file)))
 
 ;; ~/lisp/core/recipe.el
+
 ;; ~/lisp/core/refresh.el
-;; ~/lisp/core/reinstall.el(defun eask--reinstall-packages (names)
+
+;; ~/lisp/core/reinstall.el
+(defun eask--reinstall-packages (names)
   "Install packages."
   (let* ((names (mapcar #'intern names))
          (len (length names)) (s (eask--sinr len "" "s"))
@@ -298,7 +328,8 @@
     (eask-info "(Total of %s package%s reinstalled, %s skipped)"
                installed s skipped)))
 
-;; ~/lisp/core/search.el(defun eask--search-packages (query)
+;; ~/lisp/core/search.el
+(defun eask--search-packages (query)
   "Filter available packages with QUERY."
   (let ((result))
     (dolist (package (mapcar #'car package-archive-contents))
@@ -306,7 +337,8 @@
         (push package result)))
     result))
 
-;; ~/lisp/core/uninstall.el(defun eask--uninstall-packages(names)
+;; ~/lisp/core/uninstall.el
+(defun eask--uninstall-packages(names)
   "Uninstall packages."
   (let* ((names (mapcar #'intern names))
          (len (length names)) (s (eask--sinr len "" "s"))
@@ -317,7 +349,8 @@
     (eask-info "(Total of %s package%s deleted, %s skipped)"
                deleted s skipped)))
 
-;; ~/lisp/core/upgrade.el(defun eask--package-version-string (pkg-desc)
+;; ~/lisp/core/upgrade.el
+(defun eask--package-version-string (pkg-desc)
   "Get package version string with color."
   (let ((version (package-desc-version pkg-desc)))
     (ansi-yellow (package-version-join version))))
@@ -358,7 +391,189 @@
         (eask-info "(Done upgrading all packages)"))
     (eask-info "(All packages are up to date)")))
 
-;; ~/lisp/lint/checkdoc.el(defvar eask--checkdoc-errors nil "Error flag.")
+;; ~/lisp/extern/ansi.el
+(defcustom ansi-inhibit-ansi nil
+  "If non-nil, no apply ANSI code.
+This variable affects `with-ansi', `with-ansi-princ'."
+  :group 'ansi
+  :type 'boolean)
+(defvar ansi-csis
+  '((up       . "A")
+    (down     . "B")
+    (forward  . "C")
+    (backward . "D"))
+  "...")
+(defun ansi--concat (&rest sequences)
+  "Concat string elements in SEQUENCES."
+  (apply #'concat (cl-remove-if-not 'stringp sequences)))
+(defun ansi--code (effect)
+  "Return code for EFFECT."
+  (or
+   (cdr (assoc effect ansi-colors))
+   (cdr (assoc effect ansi-on-colors))
+   (cdr (assoc effect ansi-styles))))
+(defun ansi--char (effect)
+  "Return char for EFFECT."
+  (cdr (assoc effect ansi-csis)))
+(defmacro ansi--define (effect)
+  "Define ansi function with EFFECT."
+  (let ((fn-name (intern (format "ansi-%s" (symbol-name effect)))))
+    `(defun ,fn-name (format-string &rest objects)
+       ,(format "Add '%s' ansi effect to text." effect)
+       (apply 'ansi-apply (cons ',effect (cons format-string objects))))))
+(defmacro with-ansi (&rest body)
+  "Shortcut names (without ansi- prefix) can be used in this BODY."
+  (if ansi-inhibit-ansi
+      `(ansi--concat ,@body)
+    `(cl-macrolet
+         ,(mapcar
+           (lambda (alias)
+             (let ((fn (intern (format "ansi-%s" (symbol-name alias)))))
+               `(,alias (string &rest objects)
+                        ,(list 'backquote (list fn ',string ',@objects)))))
+           (append
+             (mapcar 'car ansi-colors)
+             (mapcar 'car ansi-on-colors)
+             (mapcar 'car ansi-styles)
+             (mapcar 'car ansi-csis)))
+       ,(cons 'ansi--concat body))))
+(defmacro with-ansi-princ (&rest body)
+  "Shortcut names (without ansi- prefix) can be used in this BODY and princ."
+  (if ansi-inhibit-ansi
+      `(princ (ansi--concat ,@body))
+    `(princ (with-ansi ,@body))))
+(defun ansi-apply (effect-or-code format-string &rest objects)
+  "Apply EFFECT-OR-CODE to text.
+FORMAT-STRING and OBJECTS are processed same as `apply'."
+  (let* ((format-string (if (stringp format-string) format-string
+                          (format "%s" format-string)))
+         (code (if (numberp effect-or-code)
+                   effect-or-code
+                 (ansi--code effect-or-code)))
+         (text (apply 'format format-string objects)))
+    (if ansi-inhibit-ansi text
+      (format "\e[%dm%s\e[%sm" code text ansi-reset))))
+(defun ansi-csi-apply (effect-or-char &optional reps)
+  "Apply EFFECT-OR-CHAR REPS (1 default) number of times."
+  (let ((char (if (symbolp effect-or-char)
+                  (ansi--char effect-or-char)
+                effect-or-char)))
+    (format "\u001b[%d%s" (or reps 1) char)))
+(defun ansi-up (&optional n)
+  "Move N steps (1 step default) up."
+  (ansi-csi-apply 'up n))
+(defun ansi-down (&optional n)
+  "Move N steps (1 step default) down."
+  (ansi-csi-apply 'down n))
+(defun ansi-forward (&optional n)
+  "Move N steps (1 step default) forward."
+  (ansi-csi-apply 'forward n))
+(defun ansi-backward (&optional n)
+  "Move N steps (1 step default) backward."
+  (ansi-csi-apply 'backward n))
+
+;; ~/lisp/extern/github-elpa.el
+(defun github-elpa-build ()
+  "Github elpa build."
+  (eask-load "extern/package-build")  ; override
+  (let ((package-build-working-dir github-elpa-working-dir)
+        (package-build-archive-dir github-elpa-archive-dir)
+        (package-build-recipes-dir github-elpa-recipes-dir))
+    ;;(github-elpa--git-check-repo)
+    ;;(github-elpa--git-check-workdir-clean)
+    (make-directory package-build-archive-dir t)
+    ;; Currently no way to detect build failure...
+    (dolist (recipe (directory-files package-build-recipes-dir nil "^[^.]"))
+      (message "")
+      (message "")
+      (message ":: temp-elpa: packaging recipe %s" recipe)
+      (package-build-archive recipe))
+    (package-build-cleanup)))
+
+;; ~/lisp/extern/package-build.el
+(defun package-build--create-tar (name version directory mtime)
+  "Create a tar file containing the contents of VERSION of package NAME.
+DIRECTORY is a temporary directory that contains the directory
+that is put in the tarball.  MTIME is used as the modification
+time of all files, making the tarball reproducible."
+  (let ((tar (expand-file-name (concat name "-" version ".tar")
+                               package-build-archive-dir))
+        (dir (concat name "-" version)))
+    ;; XXX: https://github.com/melpa/package-build/pull/34
+    ;;
+    ;; We definitely need to remove these two lines, or else it won't able to
+    ;; build on Windows.
+    ;;
+    ;; (when (eq system-type 'windows-nt)
+    ;;   (setq tar (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" tar)))
+    (let ((default-directory directory))
+      (process-file
+       package-build-tar-executable nil
+       (get-buffer-create "*package-build-checkout*") nil
+       "-cf" tar dir
+       ;; Arguments that are need to strip metadata that
+       ;; prevent a reproducable tarball as described at
+       ;; https://reproducible-builds.org/docs/archives.
+       "--sort=name"
+       (format "--mtime=@%d" mtime)
+       "--owner=0" "--group=0" "--numeric-owner"
+       "--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime"))
+    (when (and package-build-verbose noninteractive)
+      (message "Created %s containing:" (file-name-nondirectory tar))
+      (dolist (line (sort (process-lines package-build-tar-executable
+                                         "--list" "--file" tar)
+                          #'string<))
+        (message "  %s" line)))))
+(defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
+  "In DIR, expand SPECS, optionally under SUBDIR.
+The result is a list of (SOURCE . DEST), where SOURCE is a source
+file path and DEST is the relative path to which it should be copied.
+
+If the resulting list is empty, an error will be reported.  Pass t
+for ALLOW-EMPTY to prevent this error."
+  (let ((default-directory dir)
+        (prefix (if subdir (format "%s/" subdir) ""))
+        (lst))
+    (dolist (entry specs)
+      (setq lst
+            (if (consp entry)
+                (if (eq :exclude (car entry))
+                    (cl-nset-difference lst
+                                        (package-build-expand-file-specs
+                                         dir (cdr entry) nil t)
+                                        :key #'car
+                                        :test #'equal)
+                  (nconc lst
+                         (package-build-expand-file-specs
+                          dir
+                          (cdr entry)
+                          (concat prefix (car entry))
+                          t)))
+              (nconc
+               lst (mapcar (lambda (f)
+                             (cons f
+                                   (concat prefix
+                                           (replace-regexp-in-string
+                                            "\\.el\\.in\\'"
+                                            ".el"
+                                            (file-name-nondirectory f)))))
+                           (file-expand-wildcards entry))))))
+    (when (and (null lst) (not allow-empty))
+      (error "No matching file(s) found in %s: %s" dir specs))
+    lst))
+
+;; ~/lisp/extern/package-recipe.el
+
+;; ~/lisp/extern/package.el
+
+;; ~/lisp/extern/s.el
+(defun s-replace (old new s)
+  "Replaces OLD with NEW in S."
+  (declare (pure t) (side-effect-free t))
+  (replace-regexp-in-string (regexp-quote old) new s t t))
+
+;; ~/lisp/lint/checkdoc.el
+(defvar eask--checkdoc-errors nil "Error flag.")
 (defun eask--checkdoc-print-error (text start end &optional unfixable)
   "Print error for checkdoc."
   (setq eask--checkdoc-errors t)
@@ -378,7 +593,8 @@
     (checkdoc-file filename)
     (unless eask--checkdoc-errors (eask-msg "No issues found"))))
 
-;; ~/lisp/lint/declare.el(defun eask--check-declare-file (filename)
+;; ~/lisp/lint/declare.el
+(defun eask--check-declare-file (filename)
   "Run check-declare on FILENAME."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
@@ -391,7 +607,8 @@
           (eask-msg (buffer-string)))
       (eask-msg "No issues found"))))
 
-;; ~/lisp/lint/elint.el(defun eask--elint-file (filename)
+;; ~/lisp/lint/elint.el
+(defun eask--elint-file (filename)
   "Run elint on FILENAME."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
@@ -402,7 +619,8 @@
     (eask-print-log-buffer (elint-get-log-buffer))
     (kill-buffer (elint-get-log-buffer))))
 
-;; ~/lisp/lint/elsa.el(defun eask--elsa-process-file (filename)
+;; ~/lisp/lint/elsa.el
+(defun eask--elsa-process-file (filename)
   "Process FILENAME."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
@@ -419,7 +637,8 @@
                   (t (eask-log line)))))
       (eask-msg "No issues found"))))
 
-;; ~/lisp/lint/indent.el(defun eask--undo-lines (undo-list)
+;; ~/lisp/lint/indent.el
+(defun eask--undo-lines (undo-list)
   "Return list of lines changed in UNDO-LIST."
   (let ((lines))
     (dolist (elm undo-list)
@@ -439,7 +658,8 @@
           (eask-report "%s:%s: mismatch indentation" (buffer-name) line))
       (eask-log "No mismatch indentation found"))))
 
-;; ~/lisp/lint/keywords.el(defun eask--defined-keywords (keywords)
+;; ~/lisp/lint/keywords.el
+(defun eask--defined-keywords (keywords)
   "Return t if KEYWORDS are defined correctly."
   (let ((available-keywords (mapcar #'car finder-known-keywords))
         (result))
@@ -448,7 +668,8 @@
         (setq result t)))
     result))
 
-;; ~/lisp/lint/package.el(defun eask--package-lint-file (filename)
+;; ~/lisp/lint/package.el
+(defun eask--package-lint-file (filename)
   "Package lint FILENAME."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename)))
@@ -459,7 +680,8 @@
       (kill-this-buffer)))
   (eask-print-log-buffer "*Package-Lint*"))
 
-;; ~/lisp/lint/regexps.el(defun eask--relint-file (filename)
+;; ~/lisp/lint/regexps.el
+(defun eask--relint-file (filename)
   "Package lint FILENAME."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
@@ -481,8 +703,11 @@
       (kill-this-buffer))))
 
 ;; ~/lisp/test/buttercup.el
+
 ;; ~/lisp/test/ert-runner.el
-;; ~/lisp/test/ert.el(defvar ert--message-loop nil
+
+;; ~/lisp/test/ert.el
+(defvar ert--message-loop nil
   "Prevent inifinite recursive message function.")
 (defun eask--ert-message (func &rest args)
   "Colorized ert messages."
@@ -497,7 +722,8 @@
         (eask-msg (ansi-green (apply #'format args))))
        (t (apply func args))))))
 
-;; ~/lisp/_prepare.el(defun eask--load--adv (fnc &rest args)
+;; ~/lisp/_prepare.el
+(defun eask--load--adv (fnc &rest args)
   "Prevent `_prepare.el' loading twice."
   (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
 (defun eask-command ()
