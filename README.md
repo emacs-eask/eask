@@ -6,6 +6,7 @@
 
 [![Build](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml)
 [![CI](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml)
+[![System](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml)
 
 ## 🔨 Usage
 
