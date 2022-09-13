@@ -37,6 +37,7 @@ jobs:
         version: 'snapshot'
 
     - name: Build source - eask-api.el
+      continue-on-error: true
       run:
         make build-source
 
