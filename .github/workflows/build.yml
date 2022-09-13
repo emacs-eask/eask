@@ -19,7 +19,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-      repository: 'emacs-eask/cli'
+      with:
+        repository: emacs-eask/cli
 
     - name: Move lisp to HOME
       run: mv lisp ~/lisp
