@@ -17,6 +17,12 @@ Call the following whenever you need to know Eask's API.
 (require 'eask-api)
 ```
 
+Or enable it when the project is a valid Eask project
+
+```elisp
+(add-hook 'emacs-lisp-hook #'eask-api-setup)
+```
+
 ## Contribute
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
