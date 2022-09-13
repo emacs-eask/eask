@@ -5,13 +5,15 @@
 (defconst eask-lisp-path "~/lisp/"
   "Eask's lisp directory.")
 
-
 (defconst in-ci (getenv "GITHUB_WORKSPACE")
   "It's non-nil if the environment is identified as CI.")
 
 (defun locate-project-file (path)
   "Locate the project by enviornment."
   (concat (if in-ci "./" "../") path))
+
+;;
+;;; Util
 
 (defun let-kill-line ()
   "Kill current line."
@@ -23,6 +25,9 @@
   (let ((beg (point)))
     (forward-sexp)
     (kill-region beg (point))))
+
+;;
+;;; Generate it
 
 (with-current-buffer (find-file (locate-project-file "eask-api.el"))
   (erase-buffer)
@@ -60,8 +65,6 @@
                  ;; kill a line for everything else
                  (t (let-kill-line)))))
        (buffer-string))))
-
-  (message "%s" (buffer-string))
 
   (save-buffer))
 
