@@ -34,6 +34,7 @@
   (let-kill-line)
 
   (dolist (path (directory-files-recursively eask-lisp-path "[.]el$"))
+    (message "Processing file %s..." path)
     (insert "\n")
     (insert ";; " path)
     (insert "\n")
@@ -59,7 +60,7 @@
                (t (let-kill-line))))
        (buffer-string))))
 
-  (message (buffer-string))
+  (message "%s" (buffer-string))
 
   (save-buffer))
 
