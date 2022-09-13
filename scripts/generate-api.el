@@ -48,15 +48,15 @@
                       (string-empty-p (string-trim line)))
                   (let-kill-line))
                  ;; skip these
-                 ((or (string-prefix-p "(defun ")
-                      (string-prefix-p "(defcustom ")
-                      (string-prefix-p "(defvar ")
-                      (string-prefix-p "(defmacro "))
+                 ((or (string-prefix-p "(defun " line)
+                      (string-prefix-p "(defcustom " line)
+                      (string-prefix-p "(defvar " line)
+                      (string-prefix-p "(defmacro " line))
                   (forward-sexp)
                   (forward-line 1)
                   (goto-char (line-beginning-position)))
                  ;; other scope, we kill the entire scope
-                 ((string-prefix-p "(") (let-kill-scope))
+                 ((string-prefix-p "(" line) (let-kill-scope))
                  ;; kill a line for everything else
                  (t (let-kill-line)))))
        (buffer-string))))
