@@ -1,11 +1,11 @@
-(package "eask"
+(package "eask-api"
          "0.1.0"
-         "Project management tool for Emacs")
+         "Eask API")
 
-(website-url "https://github.com/emacs-eask/eask")
-(keywords "lisp" "eask")
+(website-url "https://github.com/emacs-eask/eask-api")
+(keywords "lisp" "eask" "api")
 
-(package-file "eask.el")
+(package-file "eask-api.el")
 
 (source "gnu")
 (source "melpa")

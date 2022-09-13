@@ -1,4 +1,4 @@
-# eask
-> Project management tool for Emacs
+# eask-api
+> Eask API
 
 WIP
