@@ -39,7 +39,7 @@ jobs:
       with:
         version: 'snapshot'
 
-    - name: Run tests
+    - name: Build source - eask-api.el
       run:
         make build-source
 
