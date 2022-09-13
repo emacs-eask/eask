@@ -1,10 +1,10 @@
-name: CI
+name: Build
 
 on:
-  workflow_run:
-    workflows: ["Build"]
-    types:
-      - completed
+  push:
+    branches:
+      - master
+  pull_request:
   workflow_dispatch:
 
 concurrency:
