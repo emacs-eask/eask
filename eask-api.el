@@ -85,6 +85,8 @@
 ;; ~/lisp/core/clean.el
 
 ;; ~/lisp/core/compile.el
+(defconst eask-compile-log-buffer-name "*Compile-Log*"
+  "Byte-compile log buffer name.")
 (defun eask--print-compile-log ()
   "Print `*Compile-Log*' buffer."
   (when (get-buffer eask-compile-log-buffer-name)
@@ -118,6 +120,8 @@
 ;; ~/lisp/core/concat.el
 
 ;; ~/lisp/core/create.el
+(defconst eask--template-project-name "template-elisp"
+  "Holds template project name.")
 (defun eask--replace-string-in-buffer (old new)
   "Replace OLD to NEW in buffer."
   (let ((str (buffer-string)))
@@ -141,6 +145,8 @@
   (message "%s" path))
 
 ;; ~/lisp/core/exec.el
+(defconst eask--homedir (getenv "EASK_HOMEDIR")  ; temporary environment from node
+  "Eask temporary storage.")
 (defun eask--export-env ()
   "Export environments."
   (let ((epf (expand-file-name "exec-path" eask--homedir))
@@ -399,12 +405,44 @@
 This variable affects `with-ansi', `with-ansi-princ'."
   :group 'ansi
   :type 'boolean)
+(defconst ansi-colors
+  '((black   . 30)
+    (red     . 31)
+    (green   . 32)
+    (yellow  . 33)
+    (blue    . 34)
+    (magenta . 35)
+    (cyan    . 36)
+    (white   . 37))
+  "List of text colors.")
+(defconst ansi-on-colors
+  '((on-black   . 40)
+    (on-red     . 41)
+    (on-green   . 42)
+    (on-yellow  . 43)
+    (on-blue    . 44)
+    (on-magenta . 45)
+    (on-cyan    . 46)
+    (on-white   . 47))
+  "List of colors to draw text on.")
+(defconst ansi-styles
+  '((bold       . 1)
+    (dark       . 2)
+    (italic     . 3)
+    (underscore . 4)
+    (blink      . 5)
+    (rapid      . 6)
+    (contrary   . 7)
+    (concealed  . 8)
+    (strike     . 9))
+  "List of styles.")
 (defvar ansi-csis
   '((up       . "A")
     (down     . "B")
     (forward  . "C")
     (backward . "D"))
   "...")
+(defconst ansi-reset 0 "Ansi code for reset.")
 (defun ansi--concat (&rest sequences)
   "Concat string elements in SEQUENCES."
   (apply #'concat (cl-remove-if-not 'stringp sequences)))
@@ -526,6 +564,16 @@ time of all files, making the tarball reproducible."
                                          "--list" "--file" tar)
                           #'string<))
         (message "  %s" line)))))
+(defconst package-build-default-files-spec
+  '("*.el" "lisp/*.el"
+    "dir" "*.info" "*.texi" "*.texinfo"
+    "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
+    "docs/dir" "docs/*.info" "docs/*.texi" "docs/*.texinfo"
+    (:exclude
+     ".dir-locals.el" "lisp/.dir-locals.el"
+     "test.el" "tests.el" "*-test.el" "*-tests.el"
+     "lisp/test.el" "lisp/tests.el" "lisp/*-test.el" "lisp/*-tests.el"))
+  "Default value for :files attribute in recipes.")
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
 The result is a list of (SOURCE . DEST), where SOURCE is a source
@@ -565,6 +613,8 @@ for ALLOW-EMPTY to prevent this error."
     lst))
 
 ;; ~/lisp/extern/package-recipe.el
+(defclass package-directory-recipe (package-recipe)
+  ((dir           :initarg :dir   :initform ".")))
 
 ;; ~/lisp/extern/package.el
 
@@ -622,6 +672,8 @@ for ALLOW-EMPTY to prevent this error."
     (kill-buffer (elint-get-log-buffer))))
 
 ;; ~/lisp/lint/elsa.el
+(defconst eask--elsa-version nil
+  "Elsa version.")
 (defun eask--elsa-process-file (filename)
   "Process FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -671,6 +723,8 @@ for ALLOW-EMPTY to prevent this error."
     result))
 
 ;; ~/lisp/lint/package.el
+(defconst eask--package-lint-version nil
+  "`package-lint' version.")
 (defun eask--package-lint-file (filename)
   "Package lint FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -683,6 +737,8 @@ for ALLOW-EMPTY to prevent this error."
   (eask-print-log-buffer "*Package-Lint*"))
 
 ;; ~/lisp/lint/regexps.el
+(defconst eask--relint-version nil
+  "`relint' version.")
 (defun eask--relint-file (filename)
   "Package lint FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -725,9 +781,28 @@ for ALLOW-EMPTY to prevent this error."
        (t (apply func args))))))
 
 ;; ~/lisp/_prepare.el
+(defconst eask-is-windows (memq system-type '(cygwin windows-nt ms-dos))   "Windows")
+(defconst eask-is-mac     (eq system-type 'darwin)                         "macOS")
+(defconst eask-is-linux   (eq system-type 'gnu/linux)                      "Linux")
+(defconst eask-is-bsd     (or eask-is-mac (eq system-type 'berkeley-unix)) "BSD")
+(defconst eask-system-type
+  (cond (eask-is-windows 'dos)
+        (eask-is-bsd     'mac)
+        (eask-is-linux   'unix)
+        (t               'unknown))
+  "Return current OS type.")
 (defun eask--load--adv (fnc &rest args)
   "Prevent `_prepare.el' loading twice."
   (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
+(defconst eask-argv argv
+  "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
+(defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
+                                  (member "-l" command-line-args)))
+  "Script currently executing.")
+(defconst eask-lisp-root
+  (expand-file-name
+   (concat (file-name-directory eask--script) "../"))
+  "Source lisp directory; should always end with slash.")
 (defun eask-command ()
   "What's the current command?
 
@@ -1016,6 +1091,8 @@ the `eask-start' execution.")
   "Return package description file if exists."
   (let ((pkg-el (package--description-file default-directory)))
     (when (file-readable-p pkg-el) pkg-el)))
+(defconst eask-has-colors (getenv "EASK_HASCOLORS")
+  "Return non-nil if terminal support colors.")
 (defun eask--str2num (str) (ignore-errors (string-to-number str)))
 (defun eask--flag (flag)
   "Return non-nil if FLAG exists.."
@@ -1071,6 +1148,26 @@ other scripts internally.  See function `eask-call'.")
 (defun eask--form-options (options)
   "Add --eask to all OPTIONS."
   (mapcar (lambda (elm) (concat "--eask" elm)) options))
+(defconst eask--option-switches
+  (eask--form-options
+   '("-g" "-f" "--dev"
+     "--debug" "--strict"
+     "--allow-error"
+     "--insecure"
+     "--timestamps" "--log-level"
+     "--log-file"
+     "--elapsed-time"
+     "--no-color"))
+  "List of boolean type options.")
+(defconst eask--option-args
+  (eask--form-options
+   '("--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
+     "--verbose" "--silent"
+     "--depth" "--dest"))
+  "List of arguments (number/string) type options.")
+(defconst eask--command-list
+  (append eask--option-switches eask--option-args)
+  "List of commands to accept, so we can avoid unknown option error.")
 (defun eask-self-command-p (arg)
   "Return non-nil if ARG is known internal command."
   (member arg eask--command-list))
@@ -1106,6 +1203,13 @@ other scripts internally.  See function `eask-call'.")
          (push (cons cmd '(lambda (&rest _))) alist))
        (setq command-switch-alist (append command-switch-alist alist))
        ,@body)))
+(defconst eask-file-keywords
+  '("package" "website-url" "keywords"
+    "package-file" "files"
+    "depends-on" "development"
+    "source" "source-priority"
+    "exec-paths" "load-paths")
+  "List of Eask file keywords.")
 (defun eask--loop-file-keywords (func)
   "Loop through Eask file keywords for environment replacement.  Internal used
 for function `eask--alias-env'."
@@ -1217,6 +1321,17 @@ Eask file in the workspace."
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
+(defconst eask-source-mapping
+  `((gnu          . "https://elpa.gnu.org/packages/")
+    (nongnu       . "https://elpa.nongnu.org/nongnu/")
+    (celpa        . "https://celpa.conao3.com/packages/")
+    (jcs-elpa     . "https://jcs-emacs.github.io/jcs-elpa/packages/")
+    (marmalade    . "https://marmalade-repo.org/packages/")
+    (melpa        . "https://melpa.org/packages/")
+    (melpa-stable . "https://stable.melpa.org/packages/")
+    (org          . "https://orgmode.org/elpa/")
+    (shmelpa      . "https://shmelpa.commandlinesystems.com/packages/"))
+  "Mapping of source name and url.")
 (defvar eask-package          nil)
 (defvar eask-package-desc     nil)  ; package descriptor
 (defvar eask-website-url      nil)
@@ -1464,6 +1579,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 (defun eask-report (&rest args)
   "Report error/warning depends on strict flag."
   (apply (if (eask-strict-p) #'eask-error #'eask-warn) args))
+(defconst eask-log-path ".log"
+  "Directory path to create log files.")
 (defcustom eask-log-file nil
   "Weather to generate log files."
   :type 'boolean)
