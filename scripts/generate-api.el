@@ -42,22 +42,23 @@
      (with-temp-buffer
        (insert-file-contents path)
        (goto-char (point-min))
-       (let ((line (thing-at-point 'line)))
-         (cond ((or (string-prefix-p ";;" line)
-                    (string-empty-p (string-trim line)))
-                (let-kill-line))
-               ;; skip these
-               ((or (string-prefix-p "(defun ")
-                    (string-prefix-p "(defcustom ")
-                    (string-prefix-p "(defvar ")
-                    (string-prefix-p "(defmacro "))
-                (forward-sexp)
-                (forward-line 1)
-                (goto-char (line-beginning-position)))
-               ;; other scope, we kill the entire scope
-               ((string-prefix-p "(") (let-kill-scope))
-               ;; kill a line for everything else
-               (t (let-kill-line))))
+       (while (not (eobp))
+         (let ((line (thing-at-point 'line)))
+           (cond ((or (string-prefix-p ";;" line)
+                      (string-empty-p (string-trim line)))
+                  (let-kill-line))
+                 ;; skip these
+                 ((or (string-prefix-p "(defun ")
+                      (string-prefix-p "(defcustom ")
+                      (string-prefix-p "(defvar ")
+                      (string-prefix-p "(defmacro "))
+                  (forward-sexp)
+                  (forward-line 1)
+                  (goto-char (line-beginning-position)))
+                 ;; other scope, we kill the entire scope
+                 ((string-prefix-p "(") (let-kill-scope))
+                 ;; kill a line for everything else
+                 (t (let-kill-line)))))
        (buffer-string))))
 
   (message "%s" (buffer-string))
