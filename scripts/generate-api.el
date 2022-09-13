@@ -2,29 +2,10 @@
 ;;; Commentary:
 ;;; Code:
 
+(load-file "./scripts/_prepare.el")
+
 (defconst eask-lisp-path "~/lisp/"
   "Eask's lisp directory.")
-
-(defconst in-ci (getenv "GITHUB_WORKSPACE")
-  "It's non-nil if the environment is identified as CI.")
-
-(defun locate-project-file (path)
-  "Locate the project by enviornment."
-  (concat (if in-ci "./" "../") path))
-
-;;
-;;; Util
-
-(defun let-kill-line ()
-  "Kill current line."
-  (goto-char (line-beginning-position)) (kill-line 1))
-
-(defun let-kill-scope ()
-  "Kill a scope."
-  (interactive)
-  (let ((beg (point)))
-    (forward-sexp)
-    (kill-region beg (point))))
 
 ;;
 ;;; Generate it
