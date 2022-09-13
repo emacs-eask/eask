@@ -7,7 +7,7 @@ ci: clean package install compile
 
 build-source:
 	@echo "Building..."
-	$(EASK) load scripts/generate-api.el
+	$(EASK) load scripts/generate-api.el --allow-error
 
 package:
 	@echo "Packaging..."
