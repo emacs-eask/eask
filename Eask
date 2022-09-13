@@ -7,6 +7,8 @@
 
 (package-file "eask-api.el")
 
+(files "eask-api-util.el")
+
 (source "gnu")
 (source "melpa")
 (source "jcs-elpa")
