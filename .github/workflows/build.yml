@@ -35,3 +35,11 @@ jobs:
     - name: Run tests
       run:
         make build-source
+
+    - name: Push generated source
+      continue-on-error: true
+      run: |
+        git pull
+        git add .
+        git commit -m "Update SVG badges - system"
+        git push
