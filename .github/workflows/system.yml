@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: jcs090218/setup-emacs@master
       with:
-        version: 28.1
+        version: 28.2
 
     - uses: actions/setup-node@v2
       with:
