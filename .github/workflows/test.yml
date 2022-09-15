@@ -23,7 +23,6 @@ jobs:
           - 26.3
           - 27.2
           - 28.2
-          - snapshot
         experimental: [false]
         include:
         - os: ubuntu-latest
