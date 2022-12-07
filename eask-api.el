@@ -566,6 +566,8 @@
         (eask-is-linux   'unix)
         (t               'unknown))
   "Return current OS type.")
+(defconst eask-tar-version-string (shell-command-to-string "tar --version")
+  "Store the `tar' version string.")
 (defun eask--load--adv (fnc &rest args)
   "Prevent `_prepare.el' loading twice."
   (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
