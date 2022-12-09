@@ -878,6 +878,7 @@ the `eask-start' execution.")
   "Return value for FLAG."
   (nth 1 (eask--flag flag)))
 (defun eask-global-p ()        (eask--flag "-g"))               ; -g, --global
+(defun eask-quick-p ()         (eask--flag "-q"))               ; -q, --quick
 (defun eask-force-p ()         (eask--flag "-f"))               ; -f, --force
 (defun eask-dev-p ()           (eask--flag "--dev"))            ; --dev, --development
 (defun eask-debug-p ()         (eask--flag "--debug"))          ; --debug
@@ -927,7 +928,7 @@ other scripts internally.  See function `eask-call'.")
   (mapcar (lambda (elm) (concat "--eask" elm)) options))
 (defconst eask--option-switches
   (eask--form-options
-   '("-g" "-f" "--dev"
+   '("-g" "-q" "-f" "--dev"
      "--debug" "--strict"
      "--allow-error"
      "--insecure"
@@ -1026,7 +1027,11 @@ Eask file in the workspace."
     result))
 (defun eask-file-try-load (relative-path)
   "Try load eask file in RELATIVE-PATH."
-  (or (eask-file-load (concat relative-path "Easkfile") t)
+  (or (eask-file-load (concat relative-path (format "Easkfile.%s" emacs-version)) t)
+      (eask-file-load (concat relative-path (format "Eask.%s" emacs-version)) t)
+      (eask-file-load (concat relative-path (format "Easkfile.%s" emacs-major-version)) t)
+      (eask-file-load (concat relative-path (format "Eask.%s" emacs-major-version)) t)
+      (eask-file-load (concat relative-path "Easkfile") t)
       (eask-file-load (concat relative-path "Eask") t)))
 (defun eask--print-env-info ()
   "Display environment information at the very top of the execution."
@@ -1069,10 +1074,11 @@ Eask file in the workspace."
            (eask-with-progress
              (ansi-green "Loading your configuration... ")
              (eask-with-verbosity 'debug
-               (load (locate-user-emacs-file "early-init.el") t)
-               (load (locate-user-emacs-file "../.emacs") t)
-               (load (locate-user-emacs-file "init.el") t))
-             (ansi-green "done"))
+               (unless (eask-quick-p)
+                 (load (locate-user-emacs-file "early-init.el") t)
+                 (load (locate-user-emacs-file "../.emacs") t)
+                 (load (locate-user-emacs-file "init.el") t)))
+             (ansi-green (if (eask-quick-p) "skipped ✗" "done ✓")))
            (eask--with-hooks ,@body))
           (t
            (let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/")))
