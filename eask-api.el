@@ -54,6 +54,35 @@
                           msg)))
         (push (ansi-color-filter-apply log) eask--checker-log)))))
 
+;; ~/lisp/clean/all.el
+
+;; ~/lisp/clean/dist.el
+(defun eask--clean-dist (path)
+  "Clean up dist PATH."
+  (let* ((name (eask-guess-package-name))
+         (version (eask-package-version))
+         (readme (expand-file-name (format "%s-readme.txt" name) path))
+         (entry (expand-file-name (format "%s-%s.entry" name version) path))
+         (packaged (eask-packaged-file))
+         (deleted-count 0)
+         (delete-dir))
+    (when (eask-delete-file readme)   (cl-incf deleted-count))
+    (when (eask-delete-file entry)    (cl-incf deleted-count))
+    (when (eask-delete-file packaged) (cl-incf deleted-count))
+    (when (and (not (zerop deleted-count)) (directory-empty-p path))
+      (eask-with-progress
+        (format "The dist folder %s seems to be empty, delete it as well... " path)
+        (ignore-errors (delete-directory path))
+        "done ✓")
+      (setq delete-dir t))
+    (eask-info "(Total of %s file%s, and %s directory deleted)" deleted-count
+               (eask--sinr deleted-count "" "s")
+               (if delete-dir "1" "0"))))
+
+;; ~/lisp/clean/elc.el
+
+;; ~/lisp/clean/workspace.el
+
 ;; ~/lisp/core/activate.el
 
 ;; ~/lisp/core/archives.el
@@ -70,19 +99,6 @@
              name url (or priority 0))))
 
 ;; ~/lisp/core/autoloads.el
-
-;; ~/lisp/core/clean-all.el
-
-;; ~/lisp/core/clean-elc.el
-(defun eask--delete-file (filename)
-  "Delete FILENAME from disk."
-  (eask-with-progress
-    (format "Deleting %s... " filename)
-    (eask-with-verbosity 'log
-      (ignore-errors (delete-file filename)))
-    "done ✓"))
-
-;; ~/lisp/core/clean.el
 
 ;; ~/lisp/core/compile.el
 (defconst eask-compile-log-buffer-name "*Compile-Log*"
@@ -285,9 +301,7 @@
     (concat name "-" version)))
 (defun eask--packaged-file (ext)
   "Find a possible packaged file."
-  (let* ((dist eask-dist-path)
-         (file (expand-file-name (concat (eask-packaged-name) "." ext) dist)))
-    (and (file-exists-p file) file)))
+  (expand-file-name (concat (eask-packaged-name) "." ext) eask-dist-path))
 (defun eask-packaged-file ()
   "Return generated package artifact; it could be a tar or el."
   (if (eask-package-multi-p) (eask--packaged-file "tar")
@@ -1498,6 +1512,17 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
               ((string-match-p "[: ][Ww]arning: " line) (eask-warn line))
               (t (eask-log line))))
       (forward-line 1))))
+(defun eask-delete-file (filename)
+  "Delete a FILENAME from disk."
+  (let (deleted)
+    (eask-with-progress
+      (format "Deleting %s... " filename)
+      (eask-with-verbosity 'log
+        (setq deleted (file-exists-p filename))
+        (ignore-errors (delete-file filename))
+        (setq deleted (and deleted (not (file-exists-p filename)))))
+      (if deleted "done ✓" "skipped ✗"))
+    deleted))
 (defun eask-help (command)
   "Show help."
   (let* ((command (eask-2str command))  ; convert to string
