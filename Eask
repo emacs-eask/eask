@@ -7,6 +7,8 @@
 
 (package-file "eask-api.el")
 
+(script "test" "echo \"Error: no test specified\" && exit 1")
+
 (files "eask-api-util.el")
 
 (source "gnu")
