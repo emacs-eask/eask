@@ -38,4 +38,4 @@ lint:
 	$(EASK) lint package
 
 clean:
-	$(EASK) clean-all
+	$(EASK) clean all
