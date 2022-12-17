@@ -287,13 +287,16 @@
         ;; This would avoid error, single file doesn't match package name.
         (append eask-files (list eask-package-file)))
     package-build-default-files-spec))
-(defun eask-package-dir-recipe ()
+(defun eask-package-dir-recipe (version)
   "Form a directory recipe."
   (eask-load "extern/package-recipe")
-  (let ((name (eask-guess-package-name))
-        (patterns (eask-package-dir--patterns))
-        (path default-directory))
-    (package-directory-recipe name :name name :files patterns :dir path)))
+  (let* ((name (eask-guess-package-name))
+         (patterns (eask-package-dir--patterns))
+         (path default-directory)
+         (rcp (package-directory-recipe name :name name :files patterns :dir path)))
+    (setf (slot-value rcp 'version) version)
+    (setf (slot-value rcp 'time) (eask-current-time))
+    rcp))
 (defun eask-packaged-name ()
   "Find a possible packaged name."
   (let ((name (eask-guess-package-name))
@@ -680,6 +683,9 @@ the `eask-start' execution.")
   "If LEN-OR-LIST has length of 1; return FORM-1, else FORM-2."
   (let ((len (if (numberp len-or-list) len-or-list (length len-or-list))))
     (if (= 1 len) form-1 form-2)))
+(defun eask-current-time ()
+  "Return current time."
+  (let ((now (current-time))) (logior (lsh (car now) 16) (cadr now))))
 (defun eask-seq-str-max (sequence)
   "Return max length in list of strings."
   (let ((result 0))
@@ -1434,7 +1440,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 (defun eask-expand-file-specs (specs)
   "Expand file SPECS."
   (mapcar (lambda (elm) (expand-file-name (car elm) default-directory))
-          (package-build-expand-file-specs default-directory specs nil t)))
+          (ignore-errors  ; The new files spec will trigger error, wrap it
+            (package-build-expand-files-spec nil nil default-directory specs))))
 (defun eask-package-files ()
   "Return package files in workspace."
   (let ((files (eask-expand-file-specs (eask-files-spec))))
