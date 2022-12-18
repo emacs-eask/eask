@@ -487,6 +487,24 @@
     (eask-print-log-buffer (elint-get-log-buffer))
     (kill-buffer (elint-get-log-buffer))))
 
+;; ~/lisp/lint/elisp-lint.el
+(defconst eask--elisp-lint-version nil
+  "`elisp-lint' version.")
+(defun eask--elisp-lint-process-file (filename)
+  "Process FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         success)
+    (eask-msg "")
+    (eask-msg "`%s` with elisp-lint (%s)" (ansi-green file) eask--elisp-lint-version)
+    (eask-with-verbosity 'debug
+      (setq success (elisp-lint-file filename)))
+    ;; Report result!
+    (cond (success
+           (eask-msg "No issues found"))
+          ((eask-strict-p)
+           (eask-error "Linting failed")))))
+
 ;; ~/lisp/lint/elsa.el
 (defconst eask--elsa-version nil
   "Elsa version.")
@@ -1148,7 +1166,7 @@ Eask file in the workspace."
                      (eask--silent (eask-setup-paths)))
                    (eask--with-hooks ,@body))
                (eask-msg "✗ Loading Eask file... missing!")
-               (eask-help 'init)))))))))
+               (eask-help "core/init")))))))))
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
