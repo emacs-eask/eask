@@ -38,6 +38,7 @@
   (when-let* ((root (if (fboundp #'project-root)
                         (ignore-errors (project-root (project-current)))
                       (cdr (project-current))))
+              ;; Just Eask is not allowed!
               (eask-files (directory-files root t "Easkfile[.0-9]*\\'"))
               (eask-files (cl-remove-if #'file-directory-p eask-files)))
     (require 'eask-api)))
