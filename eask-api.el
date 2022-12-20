@@ -97,6 +97,15 @@
          (priority (cdr priority)))
     (message (concat "  %-" eask--length-name "s  %-" eask--length-url "s  %-" eask--length-priority "s")
              name url (or priority 0))))
+(defun eask--print-archive-alist (alist)
+  "Print the archvie ALIST."
+  (let* ((names (mapcar #'car alist))
+         (eask--length-name (format "%s" (eask-seq-str-max names)))
+         (urls (mapcar #'cdr alist))
+         (eask--length-url (format "%s" (eask-seq-str-max urls)))
+         (priorities (mapcar #'cdr package-archive-priorities))
+         (eask--length-priority (format "%s" (eask-seq-str-max priorities))))
+    (mapc #'eask--print-archive alist)))
 
 ;; ~/lisp/core/autoloads.el
 
@@ -356,14 +365,14 @@
   "Print all available scripts."
   (eask-msg "available via `eask run-script`")
   (eask-msg "")
-  (let* ((keywords (mapcar #'car (reverse eask-scripts)))
-         (offset (eask-seq-str-max keywords))
+  (let* ((keys (mapcar #'car (reverse eask-scripts)))
+         (offset (eask-seq-str-max keys))
          (fmt (concat "  %-" (eask-2str offset) "s  %s")))
-    (dolist (keyword keywords)
-      (eask-msg fmt keyword (cdr (assoc keyword eask-scripts))))
+    (dolist (key keys)
+      (eask-msg fmt key (cdr (assoc key eask-scripts))))
     (eask-msg "")
-    (eask-info "(Total of %s available script%s)" (length keywords)
-               (eask--sinr keywords "" "s"))))
+    (eask-info "(Total of %s available script%s)" (length keys)
+               (eask--sinr keys "" "s"))))
 (defun eask--export-command (command)
   "Export COMMAND instruction."
   (let ((run (expand-file-name "run" eask-homedir)))
