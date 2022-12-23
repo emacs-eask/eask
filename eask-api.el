@@ -35,24 +35,79 @@
 
 ;; ~/lisp/checker/check-eask.el
 (defvar eask--checker-log nil)
+(defvar eask--checker-warnings nil)
+(defvar eask--checker-errors nil)
+(defun eask--pretty-json (json)
+  "Return pretty JSON."
+  (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
+(defun eask--column-at-point (point)
+  "Get column at POINT."
+  (save-excursion (goto-char point) (current-column)))
 (defun eask--load-buffer ()
-  "Return the current loading file session."
+  "Return the current file loading session."
   (car (cl-remove-if-not
         (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
+(defun eask--write-json-format (level msg)
+  "Prepare log for JSON format."
+  (let* ((thing (thing-at-point 'sexp))
+         (bounds (bounds-of-thing-at-point 'sexp))
+         (filename (or load-file-name eask-file))
+         (start (car bounds))
+         (end (cdr bounds))
+         (start-line (if load-file-name (line-number-at-pos start) 0))
+         (start-col  (if load-file-name (eask--column-at-point start) 0))
+         (start-pos  (if load-file-name start 0))
+         (end-line   (if load-file-name (line-number-at-pos end) 0))
+         (end-col    (if load-file-name (eask--column-at-point end) 0))
+         (end-pos    (if load-file-name end 0))
+         (msg (ansi-color-filter-apply msg)))
+    (push `((range . ((start . ((line . ,start-line)
+                                (col  . ,start-col)
+                                (pos  . ,start-pos)))
+                      (end . ((line . ,end-line)
+                              (col  . ,end-col)
+                              (pos  . ,end-pos)))))
+            (filename . ,filename)
+            (message . ,msg))
+          (cl-case level
+            (`error eask--checker-errors)
+            (`warn  eask--checker-warnings)))))
+(defun eask--write-plain-text (level msg)
+  "Prepare log for plain text format."
+  (let* ((level-string (cl-case level
+                         (`error "Error")
+                         (`warn  "Warning")))
+         (log (format "%s:%s:%s %s: %s"
+                      (or load-file-name eask-file)
+                      (if load-file-name (line-number-at-pos) 0)
+                      (if load-file-name (current-column) 0)
+                      level-string
+                      msg)))
+    (push (ansi-color-filter-apply log) eask--checker-log)))
 (defun eask--write-log (level msg)
   "Write the log."
   (unless (string= " *temp*" (buffer-name))  ; avoid error from `package-file' directive
     (with-current-buffer (or (eask--load-buffer) (buffer-name))
-      (let* ((level-string (cl-case level
-                             (`error "Error")
-                             (`warn  "Warning")))
-             (log (format "%s:%s:%s %s: %s"
-                          (file-name-nondirectory (or load-file-name eask-file))
-                          (if load-file-name (line-number-at-pos) 0)
-                          (if load-file-name (current-column) 0)
-                          level-string
-                          msg)))
-        (push (ansi-color-filter-apply log) eask--checker-log)))))
+      (funcall
+       (cond ((eask-json-p) #'eask--write-json-format)
+             (t             #'eask--write-plain-text))
+       level msg))))
+(defmacro eask--save-eask-file-state (&rest body)
+  "Execute BODY without touching the Eask-file global variables."
+  (declare (indent 0) (debug t))
+  `(let (package-archives
+         package-archive-priorities
+         eask-package
+         eask-package-desc
+         eask-website-url
+         eask-keywords
+         eask-package-file
+         eask-files
+         eask-scripts
+         eask-depends-on-emacs
+         eask-depends-on
+         eask-depends-on-dev)
+     ,@body))
 
 ;; ~/lisp/clean/all.el
 
@@ -138,6 +193,7 @@
   (let* ((compiled (cl-remove-if-not #'eask--byte-compile-file files))
          (compiled (length compiled))
          (skipped (- (length files) compiled)))
+    (eask-msg "")
     (eask-info "(Total of %s file%s compiled, %s skipped)" compiled
                (eask--sinr compiled "" "s")
                skipped)))
@@ -213,6 +269,7 @@
          (installed (length pkg-not-installed)) (skipped (- len installed)))
     (eask-log "Installing %s specified package%s..." len s)
     (mapc #'eask-package-install names)
+    (eask-msg "")
     (eask-info "(Total of %s package%s installed, %s skipped)"
                installed s skipped)))
 
@@ -402,6 +459,7 @@
          (deleted (length pkg-installed)) (skipped (- len deleted)))
     (eask-log "Uninstalling %s specified package%s..." len s)
     (mapc #'eask-package-delete names)
+    (eask-msg "")
     (eask-info "(Total of %s package%s deleted, %s skipped)"
                deleted s skipped)))
 
@@ -444,7 +502,9 @@
   (if-let ((upgrades (eask-package--upgrades)))
       (progn
         (mapcar #'eask-package-upgrade upgrades)
+        (eask-msg "")
         (eask-info "(Done upgrading all packages)"))
+    (eask-msg "")
     (eask-info "(All packages are up to date)")))
 
 ;; ~/lisp/lint/checkdoc.el
@@ -962,6 +1022,7 @@ the `eask-start' execution.")
 (defun eask-allow-error-p ()   (eask--flag "--allow-error"))    ; --allow-error
 (defun eask-insecure-p ()      (eask--flag "--insecure"))       ; --insecure
 (defun eask-no-color-p ()      (eask--flag "--no-color"))       ; --no-color
+(defun eask-json-p ()          (eask--flag "--json"))           ; --json
 (defun eask-proxy ()       (eask--flag-value "--proxy"))        ; --proxy
 (defun eask-http-proxy ()  (eask--flag-value "--http-proxy"))   ; --http-proxy
 (defun eask-https-proxy () (eask--flag-value "--https-proxy"))  ; --https-proxy
@@ -1013,7 +1074,8 @@ other scripts internally.  See function `eask-call'.")
   (eask--form-options
    '("--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
      "--verbose" "--silent"
-     "--depth" "--dest"))
+     "--depth" "--dest"
+     "--json"))
   "List of arguments (number/string) type options.")
 (defconst eask--command-list
   (append eask--option-switches eask--option-args)
@@ -1093,7 +1155,7 @@ Eask file in the workspace."
 (defun eask-file-load (location &optional noerror)
   "Load Eask file in the LOCATION."
   (when-let* ((target-eask-file (expand-file-name location user-emacs-directory))
-              (result (eask--alias-env (load target-eask-file noerror t))))
+              (result (eask--alias-env (load target-eask-file 'noerror t))))
     (setq eask-file target-eask-file  ; assign eask file only if success
           eask-file-root (file-name-directory target-eask-file))
     (run-hooks 'eask-file-loaded-hook)
@@ -1137,22 +1199,25 @@ Eask file in the workspace."
          (eask--print-env-info)
          (cond
           ((eask-global-p)
-           ;; We accept Eask file in global scope, but it shouldn't be used
-           ;; as a sandbox.
-           (if (eask-file-try-load "./")
-               (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
-             (eask-msg "✗ Loading config Eask file... missing!"))
-           (message "")
-           (package-activate-all)
-           (eask-with-progress
-             (ansi-green "Loading your configuration... ")
-             (eask-with-verbosity 'debug
-               (unless (eask-quick-p)
-                 (load (locate-user-emacs-file "early-init.el") t)
-                 (load (locate-user-emacs-file "../.emacs") t)
-                 (load (locate-user-emacs-file "init.el") t)))
-             (ansi-green (if (eask-quick-p) "skipped ✗" "done ✓")))
-           (eask--with-hooks ,@body))
+           (let* ((special (eask-special-p))
+                  (inhibit-config (or special (eask-quick-p))))
+             (unless special
+               ;; We accept Eask-file in global scope, but it shouldn't be used
+               ;; for the sandbox.
+               (if (eask-file-try-load "./")
+                   (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
+                 (eask-msg "✗ Loading config Eask file... missing!")))
+             (message "")
+             (package-activate-all)
+             (eask-with-progress
+               (ansi-green "Loading your configuration... ")
+               (eask-with-verbosity 'debug
+                 (unless inhibit-config
+                   (load (locate-user-emacs-file "early-init.el") t)
+                   (load (locate-user-emacs-file "../.emacs") t)
+                   (load (locate-user-emacs-file "init.el") t)))
+               (ansi-green (if inhibit-config "skipped ✗" "done ✓")))
+             (eask--with-hooks ,@body)))
           (t
            (let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/")))
                   (package-user-dir (expand-file-name "elpa" user-emacs-directory))
@@ -1160,12 +1225,12 @@ Eask file in the workspace."
                   (user-init-file (locate-user-emacs-file "init.el"))
                   (custom-file (locate-user-emacs-file "custom.el"))
                   (special (eask-special-p)))
-             (if (or (eask-file-try-load "../../")
-                     special)
+             (unless special
+               (if (eask-file-try-load "../../")
+                   (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
+                 (eask-msg "✗ Loading Eask file... missing!")))
+             (if (or special eask-file)
                  (progn
-                   (if eask-file
-                       (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
-                     (eask-msg "✗ Loading Eask file... missing!"))
                    (message "")
                    (package-activate-all)
                    (unless special
