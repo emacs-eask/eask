@@ -1,4 +1,4 @@
-;;; eask-api.el --- Provide Eask API for your elisp environment.  -*- lexical-binding: t; -*-
+;;; eask-api.el --- Provide Eask API for your elisp environment  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022  Shen, Jen-Chieh
 
