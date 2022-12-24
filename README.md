@@ -9,6 +9,16 @@
 [![CI](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml)
 [![System](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml)
 
+The goal of this package is to provide function signatures so you can
+develop Eask with your elisp enviornment. Few improtanet feature that
+this package can do:
+
+1. Provide auto-completion with `capf` (`auto-complete`, `company`, `corfu`, etc)
+2. Provide function signatures and display arglist (`eldoc`)
+
+Generally, you would not want to call any of the function from your Emacs
+editor enviornment. Unless you are extending Eask's core functionalities.
+
 ## 🔨 Usage
 
 Call the following whenever you need to know Eask's API.
@@ -22,6 +32,12 @@ Or enable it when the project is a valid Eask project
 ```elisp
 (add-hook 'emacs-lisp-hook #'eask-api-setup)
 ```
+
+## 🔧 Customization
+
+### 🧪 Variables
+
+- `eask-api-strict-p` - Set to nil if you want to load Eask API whenever it's possible.
 
 ## Contribute
 
