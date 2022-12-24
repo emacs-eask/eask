@@ -1,13 +1,6 @@
-;;; eask-api.el --- Eask API  -*- lexical-binding: t; -*-
+;;; eask-api-core.el --- Eask API  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022  Shen, Jen-Chieh
-
-;; Author: Shen, Jen-Chieh <jcs090218@gmail.com>
-;; Maintainer: Shen, Jen-Chieh <jcs090218@gmail.com>
-;; URL: https://github.com/emacs-eask/eask-api
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "26.1"))
-;; Keywords: lisp eask api
 
 ;; This file is not part of GNU Emacs.
 
@@ -1720,9 +1713,9 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
   "Name of default target directory for building packages."
   :type 'string)
 
-(provide 'eask-api)
+(provide 'eask-api-core)
 ;; Local Variables:
 ;; coding: utf-8
 ;; no-byte-compile: t
 ;; End:
-;;; eask-api.el ends here
+;;; eask-api-core.el ends here
