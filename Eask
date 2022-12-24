@@ -9,7 +9,7 @@
 
 (script "test" "echo \"Error: no test specified\" && exit 1")
 
-(files "eask-api-util.el")
+(files "eask-api-core.el")
 
 (source "gnu")
 (source "melpa")
