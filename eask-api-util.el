@@ -26,6 +26,17 @@
 
 (require 'subr-x)
 
+(defgroup eask-api nil
+  "Eask API."
+  :prefix "eask-api-"
+  :group 'tool
+  :link '(url-link :tag "Repository" "https://github.com/emacs-eask/eask-api"))
+
+(defcustom eask-api-strict-p t
+  "Set to nil if you want to load Eask API whenever it's possible."
+  :type 'boolean
+  :group 'eask-api)
+
 ;;; Externals
 
 (declare-function project-root "project" (project))
@@ -39,7 +50,9 @@
                         (ignore-errors (project-root (project-current)))
                       (cdr (project-current))))
               ;; Just Eask is not allowed!
-              (eask-files (directory-files root t "Easkfile[.0-9]*\\'"))
+              (eask-files (or (directory-files root t "Easkfile[.0-9]*\\'")
+                              (unless eask-api-strict-p
+                                (directory-files root t "Eask[.0-9]*\\'"))))
               (eask-files (cl-remove-if #'file-directory-p eask-files)))
     (require 'eask-api)))
 
