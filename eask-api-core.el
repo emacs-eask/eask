@@ -148,11 +148,11 @@
 (defun eask--print-archive-alist (alist)
   "Print the archvie ALIST."
   (let* ((names (mapcar #'car alist))
-         (eask--length-name (format "%s" (eask-seq-str-max names)))
+         (eask--length-name (eask-2str (eask-seq-str-max names)))
          (urls (mapcar #'cdr alist))
-         (eask--length-url (format "%s" (eask-seq-str-max urls)))
+         (eask--length-url (eask-2str (eask-seq-str-max urls)))
          (priorities (mapcar #'cdr package-archive-priorities))
-         (eask--length-priority (format "%s" (eask-seq-str-max priorities))))
+         (eask--length-priority (eask-2str (eask-seq-str-max priorities))))
     (mapc #'eask--print-archive alist)))
 
 ;; ~/lisp/core/autoloads.el
@@ -242,7 +242,7 @@
     (let* ((names (mapcar #'car dependencies))
            (offset (eask-seq-str-max names)))
       (setq eask--max-offset (max offset eask--max-offset)
-            offset (format "%s" eask--max-offset))
+            offset (eask-2str eask--max-offset))
       (dolist (dep dependencies)
         (let* ((target-version (cdr dep))
                (target-version (if (= (length target-version) 1)
@@ -439,7 +439,7 @@
   "Filter available packages with QUERY."
   (let ((result))
     (dolist (package (mapcar #'car package-archive-contents))
-      (when (string-match-p query (format "%s" package))
+      (when (string-match-p query (eask-2str package))
         (push package result)))
     result))
 
