@@ -31,6 +31,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'subr-x)
 
 (defgroup eask-api nil
@@ -44,11 +45,26 @@
   :type 'boolean
   :group 'eask-api)
 
+;;
 ;;; Externals
 
 (declare-function project-root "project" (project))
 
+;;
 ;;; Core
+
+(defun eask-api-files (&optional dir)
+  "Return a list of Eask files.
+
+If argument DIR is nil, we use `default-directory' instead."
+  (setq dir (or dir default-directory))
+  (let ((files (or
+                ;; Easkfile is common file for Eask development!
+                (directory-files dir t "Easkfile[.0-9]*\\'")
+                ;; Allow regular Eask project!?
+                (unless eask-api-strict-p
+                  (directory-files dir t "Eask[.0-9]*\\'")))))
+    (cl-remove-if #'file-directory-p files)))
 
 ;;;###autoload
 (defun eask-api-setup ()
@@ -56,11 +72,7 @@
   (when-let* ((root (if (fboundp #'project-root)
                         (ignore-errors (project-root (project-current)))
                       (cdr (project-current))))
-              ;; Just Eask is not allowed!
-              (eask-files (or (directory-files root t "Easkfile[.0-9]*\\'")
-                              (unless eask-api-strict-p
-                                (directory-files root t "Eask[.0-9]*\\'"))))
-              (eask-files (cl-remove-if #'file-directory-p eask-files)))
+              ((eask-api-files root)))
     (require 'eask-api-core)))
 
 (provide 'eask-api)
