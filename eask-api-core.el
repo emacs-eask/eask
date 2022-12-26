@@ -1,4 +1,4 @@
-;;; eask-api-core.el --- Eask API  -*- lexical-binding: t; -*-
+;;; eask-api-core.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022  Shen, Jen-Chieh
 
@@ -19,7 +19,7 @@
 
 ;;; Commentary:
 ;;
-;; Eask API
+;; Core Eask APIs
 ;;
 ;; This file is generated from a template file, see templates/source.el file.
 ;;
