@@ -1,6 +1,6 @@
 (package "eask-api"
          "0.1.0"
-         "Provide Eask API for your elisp environment")
+         "Core Eask APIs")
 
 (website-url "https://github.com/emacs-eask/eask-api")
 (keywords "lisp" "eask" "api")

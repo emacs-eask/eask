@@ -1,4 +1,4 @@
-;;; eask-api.el --- Provide Eask API for your elisp environment  -*- lexical-binding: t; -*-
+;;; eask-api.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022  Shen, Jen-Chieh
 
@@ -26,7 +26,8 @@
 
 ;;; Commentary:
 ;;
-;; Provide Eask API for your elisp environment.
+;; This is the core APIs of the Eask CLI, a tool for building and testing
+;; Emacs Lisp packages
 ;;
 
 ;;; Code:
