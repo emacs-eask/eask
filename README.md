@@ -5,7 +5,7 @@
 <a href="#"><img align="right" src="https://raw.githubusercontent.com/emacs-eask/cli/master/docs/static/logo.png" width="20%"></a>
 
 # eask-api
-> Eask API
+> Core Eask APIs
 
 [![Build](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml)
 [![CI](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml)
