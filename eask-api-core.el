@@ -123,6 +123,7 @@
         (ignore-errors (delete-directory path))
         "done ✓")
       (setq delete-dir t))
+    (eask-msg "")
     (eask-info "(Total of %s file%s, and %s directory deleted)" deleted-count
                (eask--sinr deleted-count "" "s")
                (if delete-dir "1" "0"))))
@@ -1221,17 +1222,15 @@ Eask file in the workspace."
              (unless special
                (if (eask-file-try-load "../../")
                    (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
-                 (eask-msg "✗ Loading Eask file... missing!")))
-             (if (or special eask-file)
-                 (progn
-                   (message "")
-                   (package-activate-all)
-                   (unless special
-                     (ignore-errors (make-directory package-user-dir t))
-                     (eask--silent (eask-setup-paths)))
-                   (eask--with-hooks ,@body))
-               (eask-msg "✗ Loading Eask file... missing!")
-               (eask-help "core/init")))))))))
+                 (eask-msg "✗ Loading Eask file... missing!")
+                 (eask-help "core/init")))
+             (when (or special eask-file)
+               (message "")
+               (package-activate-all)
+               (unless special
+                 (ignore-errors (make-directory package-user-dir t))
+                 (eask--silent (eask-setup-paths)))
+               (eask--with-hooks ,@body)))))))))
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
