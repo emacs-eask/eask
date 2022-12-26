@@ -1,6 +1,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![JCS-ELPA](https://raw.githubusercontent.com/jcs-emacs/badges/master/elpa/v/eask-api.svg)](https://jcs-emacs.github.io/jcs-elpa/#/eask-api)
 <a href="https://www.gnu.org/software/emacs/download.html"><img align="right" src="etc/badges/emacs.svg" alt="Emacs"></a>
+<a href="#"><img align="right" src="https://raw.githubusercontent.com/emacs-eask/cli/master/docs/static/logo.png" width="20%"></a>
 
 # eask-api
 > Eask API
