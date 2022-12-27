@@ -54,6 +54,17 @@
 ;;
 ;;; Core
 
+(defun eask-api-check-filename (name)
+  "Return non-nil if NAME is a valid Eask-file."
+  (when-let* ((name (if (string-match "[\\/]" name)  ; if path
+                        (file-name-nondirectory (directory-file-name name))
+                      name))
+              (prefix (cond ((string-prefix-p "Easkfile" name) "Easkfile")
+                            ((string-prefix-p "Eask" name)     "Eask"))))
+    (let ((suffix (car (split-string name prefix t))))
+      (or (null suffix)
+          (string-match-p "^[.][.0-9]*$" suffix)))))
+
 (defun eask-api-files (&optional dir)
   "Return a list of Eask files.
 
