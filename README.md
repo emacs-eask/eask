@@ -26,7 +26,7 @@ editor enviornment. Unless you are extending Eask's core functionalities.
 Call the following whenever you need to know Eask's API.
 
 ```elisp
-(require 'eask-api)
+(require 'eask-api-core)
 ```
 
 Or enable it when the project is a valid Eask project
