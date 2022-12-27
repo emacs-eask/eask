@@ -8,8 +8,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## 0.1.1 (Unreleased)
 > Released N/A
 
-* Add utility module, `eask-api-util.el` (8a2b440398caf85750cc0a726a65c2a27e129a5d)
+* Add `eask-api-core.el` (8a2b440398caf85750cc0a726a65c2a27e129a5d)
 * Add more generate rules (515f9d5366e84aa6fd6c6f9fb3803eca9e7ec5f0)
+* Add utility function `eask-api-check-filename` (d7a688b0d98d2a8e702c5710826433e94d99d3d5)
 
 ## 0.1.0
 > Released Sep 13, 2022
