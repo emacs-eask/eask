@@ -56,9 +56,7 @@
 
 (defun eask-api-check-filename (name)
   "Return non-nil if NAME is a valid Eask-file."
-  (when-let* ((name (if (string-match "[\\/]" name)  ; if path
-                        (file-name-nondirectory (directory-file-name name))
-                      name))
+  (when-let* ((name (file-name-nondirectory (directory-file-name name)))
               (prefix (cond ((string-prefix-p "Easkfile" name) "Easkfile")
                             ((string-prefix-p "Eask" name)     "Eask"))))
     (let ((suffix (car (split-string name prefix t))))
