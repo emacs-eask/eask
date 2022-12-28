@@ -103,6 +103,8 @@
      ,@body))
 
 ;; ~/lisp/clean/all.el
+(defvar eask-no-cleaning-operation-p nil
+  "Set to non-nil if there is no cleaning operation done.")
 
 ;; ~/lisp/clean/dist.el
 (defun eask--clean-dist (path)
