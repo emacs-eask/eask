@@ -46,13 +46,40 @@
   :type 'boolean
   :group 'eask-api)
 
+(defcustom eask-api-executable nil
+  "Executable to eask-cli."
+  :type 'string
+  :group 'eask-api)
+
 ;;
 ;;; Externals
 
 (declare-function project-root "project" (project))
 
 ;;
-;;; Core
+;;; Executable
+
+(defun eask-api-executable ()
+  "Return Eask CLI path."
+  (or eask-api-executable (executable-find "eask")))
+
+(defun eask-api-executable-p ()
+  "Return t if Eask CLI is executed from executable and not shell script."
+  (not
+   (string= "bin"
+            (file-name-nondirectory
+             (directory-file-name (file-name-directory (eask-api-executable)))))))
+
+(defun eask-api-lisp-root ()
+  "Return Eask CLI lisp path."
+  (file-name-as-directory
+   (expand-file-name "lisp"
+                     (if (eask-api-executable-p)
+                         (eask-api-executable)
+                       (expand-file-name "../../" (eask-api-executable))))))
+
+;;
+;;; Entry
 
 (defun eask-api-check-filename (name)
   "Return non-nil if NAME is a valid Eask-file."
@@ -79,11 +106,11 @@ If argument DIR is nil, we use `default-directory' instead."
 ;;;###autoload
 (defun eask-api-setup ()
   "Set up for `eask-api'."
-  (when-let* ((root (if (fboundp #'project-root)
-                        (ignore-errors (project-root (project-current)))
-                      (cdr (project-current))))
-              ((eask-api-files root)))
-    (require 'eask-api-core)))
+  (let ((root (if (fboundp #'project-root)
+                  (ignore-errors (project-root (project-current)))
+                (cdr (project-current)))))
+    (when (eask-api-files (or root default-directory))
+      (require 'eask-api-core))))
 
 (provide 'eask-api)
 ;;; eask-api.el ends here
