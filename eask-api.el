@@ -57,6 +57,15 @@
 (declare-function project-root "project" (project))
 
 ;;
+;;; Compat
+
+(defun eask-api-project-root ()
+  "Return project root."
+  (if (fboundp #'project-root)
+      (ignore-errors (project-root (project-current)))
+    (cdr (project-current))))
+
+;;
 ;;; Executable
 
 (defun eask-api-executable ()
@@ -106,11 +115,14 @@ If argument DIR is nil, we use `default-directory' instead."
 ;;;###autoload
 (defun eask-api-setup ()
   "Set up for `eask-api'."
-  (let ((root (if (fboundp #'project-root)
-                  (ignore-errors (project-root (project-current)))
-                (cdr (project-current)))))
-    (when (eask-api-files (or root default-directory))
-      (require 'eask-api-core))))
+  (let* ((proj-root (eask-api-project-root))
+         (e-default (eask-api-files default-directory))
+         (e-project (unless e-default (eask-api-files proj-root)))
+         (root (if e-default default-directory proj-root))
+         (files (or e-default e-project)))
+    (when files
+      (require 'eask-api-core)
+      (list :root root :files files))))
 
 (provide 'eask-api)
 ;;; eask-api.el ends here
