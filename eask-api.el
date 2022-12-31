@@ -57,6 +57,15 @@
 (declare-function project-root "project" (project))
 
 ;;
+;;; Compat
+
+(defun eask-api-project-root ()
+  "Return project root."
+  (if (fboundp #'project-root)
+      (ignore-errors (project-root (project-current)))
+    (cdr (project-current))))
+
+;;
 ;;; Executable
 
 (defun eask-api-executable ()
@@ -71,7 +80,7 @@
              (directory-file-name (file-name-directory (eask-api-executable)))))))
 
 (defun eask-api-lisp-root ()
-  "Return Eask CLI lisp path."
+  "Return Eask CLI `lisp' path."
   (file-name-as-directory
    (expand-file-name "lisp"
                      (if (eask-api-executable-p)
@@ -90,19 +99,36 @@
       (or (null suffix)
           (string-match-p "^[.][.0-9]*$" suffix)))))
 
+(defun eask-api-files (&optional dir)
+  "Return a list of Eask files.
+
+If argument DIR is nil, we use `default-directory' instead.
+
+This is a simpliy version of `eask--all-files' function."
+  (setq dir (or dir default-directory))
+  (let ((files (or
+                ;; Easkfile is common file for Eask development!
+                (directory-files dir t "Easkfile[.0-9]*\\'")
+                ;; Allow regular Eask project!?
+                (unless eask-api-strict-p
+                  (directory-files dir t "Eask[.0-9]*\\'")))))
+    (cl-remove-if #'file-directory-p files)))
+
 ;;;###autoload
 (defun eask-api-setup ()
   "Set up for `eask-api'.
 
-It will return a list of available Eask-files to load."
-  (when-let* ((files (eask--find-files default-directory))
-              (files (if eask-api-strict-p
-                         (cl-remove-if-not (lambda (file)
-                                             (string-prefix-p "Easkfile" file))
-                                           files)
-                       files)))
-    (require 'eask-api-core)
-    files))
+Since this is the entry, we only check for the project root and current
+workspace.  The full version uses function `locate-dominating-file' to search
+for Eask-files, but we don't want to do that for our entry."
+  (let* ((proj-root (eask-api-project-root))
+         (e-default (eask-api-files default-directory))
+         (e-project (unless e-default (eask-api-files proj-root)))
+         (root (if e-default default-directory proj-root))
+         (files (or e-default e-project)))
+    (when files
+      (require 'eask-api-core)
+      (list :root root :files files))))
 
 (provide 'eask-api)
 ;;; eask-api.el ends here
