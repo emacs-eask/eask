@@ -134,8 +134,6 @@
 
 ;; ~/lisp/clean/workspace.el
 
-;; ~/lisp/core/activate.el
-
 ;; ~/lisp/core/archives.el
 (defvar eask--length-name)
 (defvar eask--length-url)
@@ -656,6 +654,8 @@
                    file (line-number-at-pos error-pos)
                    (capitalize (eask-2str severity)) msg)))
       (kill-this-buffer))))
+
+;; ~/lisp/test/activate.el
 
 ;; ~/lisp/test/buttercup.el
 
