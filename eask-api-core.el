@@ -132,6 +132,16 @@
 
 ;; ~/lisp/clean/elc.el
 
+;; ~/lisp/clean/log-file.el
+(defmacro eask--log-remove (file)
+  "Remove log FILE."
+  `(ignore-errors (delete-file (expand-file-name ,file log-dir))))
+(defun eask--delete-log-file (file log-dir count)
+  "Delete a log FILE."
+  (when (eask-delete-file (expand-file-name file log-dir))
+    (cl-incf count))
+  count)
+
 ;; ~/lisp/clean/workspace.el
 
 ;; ~/lisp/core/archives.el
