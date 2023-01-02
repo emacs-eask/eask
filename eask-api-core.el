@@ -194,22 +194,6 @@
 
 ;; ~/lisp/core/concat.el
 
-;; ~/lisp/core/create.el
-(defconst eask--template-project-name "template-elisp"
-  "Holds template project name.")
-(defun eask--replace-string-in-buffer (old new)
-  "Replace OLD to NEW in buffer."
-  (let ((str (buffer-string)))
-    (setq str (eask-s-replace old new str))
-    (delete-region (point-min) (point-max))
-    (insert str)))
-(defun eask--get-user ()
-  "Return user name."
-  (string-trim (shell-command-to-string "git config user.name")))
-(defun eask--get-mail ()
-  "Return user email."
-  (string-trim (shell-command-to-string "git config user.email")))
-
 ;; ~/lisp/core/emacs.el
 
 ;; ~/lisp/core/eval.el
@@ -500,6 +484,26 @@
         (eask-info "(Done upgrading all packages)"))
     (eask-msg "")
     (eask-info "(All packages are up to date)")))
+
+;; ~/lisp/create/elpa.el
+(defconst eask--template-elpa-name "template-elpa"
+  "Holds template project name.")
+
+;; ~/lisp/create/package.el
+(defconst eask--template-project-name "template-elisp"
+  "Holds template project name.")
+(defun eask--replace-string-in-buffer (old new)
+  "Replace OLD to NEW in buffer."
+  (let ((str (buffer-string)))
+    (setq str (eask-s-replace old new str))
+    (delete-region (point-min) (point-max))
+    (insert str)))
+(defun eask--get-user ()
+  "Return user name."
+  (string-trim (shell-command-to-string "git config user.name")))
+(defun eask--get-mail ()
+  "Return user email."
+  (string-trim (shell-command-to-string "git config user.email")))
 
 ;; ~/lisp/lint/checkdoc.el
 (defvar eask--checkdoc-errors nil "Error flag.")
@@ -1355,6 +1359,7 @@ This uses function `locate-dominating-file' to look up directory tree."
   (setq eask-files (append eask-files patterns)))
 (defun eask-f-script (name command &rest args)
   "Add scripts' command."
+  (when (symbolp name) (setq name (eask-2str name)))  ; ensure to string, accept symbol
   (when (assoc name eask-scripts)
     (eask-error "Run-script with the same key name is not allowed: `%s`" name))
   (push (cons name
