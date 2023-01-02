@@ -152,6 +152,8 @@
     (cl-incf count))
   count)
 
+;; ~/lisp/clean/pkg-file.el
+
 ;; ~/lisp/clean/workspace.el
 
 ;; ~/lisp/core/archives.el
