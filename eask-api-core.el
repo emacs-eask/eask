@@ -110,8 +110,8 @@
   (declare (indent 1))
   `(let (eask-no-cleaning-operation-p)
      (eask-with-progress
-       (format "%s... \n" ,title)
-       (progn ,@body)
+       (format "%s... " ,title)
+       (eask-with-verbosity 'debug ,@body)
        (if eask-no-cleaning-operation-p "skipped ✗" "done ✓"))))
 
 ;; ~/lisp/clean/autoloads.el
@@ -124,33 +124,46 @@
          (readme (expand-file-name (format "%s-readme.txt" name) path))
          (entry (expand-file-name (format "%s-%s.entry" name version) path))
          (packaged (eask-packaged-file))
-         (deleted-count 0)
+         (deleted 0)
          (delete-dir))
-    (when (eask-delete-file readme)   (cl-incf deleted-count))
-    (when (eask-delete-file entry)    (cl-incf deleted-count))
-    (when (eask-delete-file packaged) (cl-incf deleted-count))
-    (when (and (not (zerop deleted-count)) (directory-empty-p path))
+    (when (eask-delete-file readme)   (cl-incf deleted))
+    (when (eask-delete-file entry)    (cl-incf deleted))
+    (when (eask-delete-file packaged) (cl-incf deleted))
+    (when (and (not (zerop deleted)) (directory-empty-p path))
       (eask-with-progress
         (format "The dist folder %s seems to be empty, delete it as well... " path)
         (ignore-errors (delete-directory path))
         "done ✓")
       (setq delete-dir t))
     (eask-msg "")
-    (eask-info "(Total of %s file%s, and %s directory deleted)" deleted-count
-               (eask--sinr deleted-count "" "s")
+    (eask-info "(Total of %s file%s, and %s directory deleted)" deleted
+               (eask--sinr deleted "" "s")
                (if delete-dir "1" "0"))))
 
 ;; ~/lisp/clean/elc.el
 
 ;; ~/lisp/clean/log-file.el
-(defmacro eask--log-remove (file)
-  "Remove log FILE."
-  `(ignore-errors (delete-file (expand-file-name ,file log-dir))))
-(defun eask--delete-log-file (file log-dir count)
-  "Delete a log FILE."
-  (when (eask-delete-file (expand-file-name file log-dir))
-    (cl-incf count))
-  count)
+(defun eask--clean-log (path)
+  "Clean up .log PATH."
+  (let ((log-files '("messages.log"
+                     "warnings.log"
+                     "backtrace.log"
+                     "compile-log.log"))
+        (deleted 0)
+        (delete-dir))
+    (dolist (log-file log-files)
+      (when (eask-delete-file (expand-file-name log-file path))
+        (cl-incf deleted)))
+    (when (and (not (zerop deleted)) (directory-empty-p path))
+      (eask-with-progress
+        (format "The dist folder %s seems to be empty, delete it as well... " path)
+        (ignore-errors (delete-directory path))
+        "done ✓")
+      (setq delete-dir t))
+    (eask-msg "")
+    (eask-info "(Total of %s log file%s deleted, %s skipped)" deleted
+               (eask--sinr deleted "" "s")
+               (- (length log-files) deleted))))
 
 ;; ~/lisp/clean/pkg-file.el
 
@@ -188,7 +201,7 @@
   (when (get-buffer eask-compile-log-buffer-name)
     (with-current-buffer eask-compile-log-buffer-name
       (eask-print-log-buffer)
-      (message ""))))
+      (eask-msg ""))))
 (defun eask--byte-compile-file (filename)
   "Byte compile FILENAME."
   ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
@@ -209,7 +222,9 @@
   (let* ((compiled (cl-remove-if-not #'eask--byte-compile-file files))
          (compiled (length compiled))
          (skipped (- (length files) compiled)))
-    (eask-msg "")
+    ;; XXX: Avoid last newline from the log buffer!
+    (unless (get-buffer eask-compile-log-buffer-name)
+      (eask-msg ""))
     (eask-info "(Total of %s file%s compiled, %s skipped)" compiled
                (eask--sinr compiled "" "s")
                skipped)))
