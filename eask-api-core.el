@@ -101,6 +101,41 @@
          eask-depends-on
          eask-depends-on-dev)
      ,@body))
+(defun eask--check-file (files)
+  "Lint list of Eask FILES."
+  (let (checked-files content)
+    ;; Linting
+    (dolist (file files)
+      (eask--save-eask-file-state
+        (eask--setup-env
+          (eask--alias-env
+            (when (ignore-errors (load file 'noerror t))
+              (push file checked-files))))))
+
+    ;; Print result
+    (eask-msg "")
+    (cond ((and (eask-json-p)  ; JSON format
+                (or eask--checker-warnings eask--checker-errors))
+           (setq content
+                 (eask--pretty-json (json-encode
+                                     `((warnings . ,eask--checker-warnings)
+                                       (errors   . ,eask--checker-errors)))))
+           (eask-msg content))
+          (eask--checker-log  ; Plain text
+           (setq content
+                 (with-temp-buffer
+                   (dolist (msg (reverse eask--checker-log))
+                     (insert msg "\n"))
+                   (buffer-string)))
+           (mapc #'eask-msg (reverse eask--checker-log)))
+          (t
+           (eask-info "(Checked %s file%s)"
+                      (length checked-files)
+                      (eask--sinr checked-files "" "s"))))
+
+    ;; Output file
+    (when (and content (eask-output))
+      (write-region content nil (eask-output)))))
 
 ;; ~/lisp/clean/all.el
 (defvar eask-no-cleaning-operation-p nil
@@ -694,6 +729,8 @@
           (funcall report-func "%s:%s %s: %s"
                    file (line-number-at-pos error-pos)
                    (capitalize (eask-2str severity)) msg)))
+      (unless errors
+        (eask-msg "No issues found"))
       (kill-this-buffer))))
 
 ;; ~/lisp/test/activate.el
@@ -1065,7 +1102,7 @@ the `eask-start' execution.")
 (defun eask-insecure-p ()      (eask--flag "--insecure"))       ; --insecure
 (defun eask-no-color-p ()      (eask--flag "--no-color"))       ; --no-color
 (defun eask-json-p ()          (eask--flag "--json"))           ; --json
-(defun eask-output ()      (eask--flag-value "-o"))             ; --o, --output
+(defun eask-output ()      (eask--flag-value "--output"))       ; --o, --output
 (defun eask-proxy ()       (eask--flag-value "--proxy"))        ; --proxy
 (defun eask-http-proxy ()  (eask--flag-value "--http-proxy"))   ; --http-proxy
 (defun eask-https-proxy () (eask--flag-value "--https-proxy"))  ; --https-proxy
@@ -1116,7 +1153,7 @@ other scripts internally.  See function `eask-call'.")
   "List of boolean type options.")
 (defconst eask--option-args
   (eask--form-options
-   '("-o"
+   '("--output"
      "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
      "--verbose" "--silent"
      "--depth" "--dest"))
@@ -1631,11 +1668,6 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
   (when-let ((elcs (mapcar (lambda (elm) (concat elm "c")) (eask-package-el-files))))
     (setq elcs (cl-remove-if-not (lambda (elm) (file-exists-p elm)) elcs))
     elcs))
-(defun eask-args-or-package-el-files ()
-  "Return args if specified, else return package files by default."
-  (if (eask-args)
-      (eask-expand-file-specs (eask-args))
-    (eask-package-el-files)))
 (defun eask-package-multi-p ()
   "Return t if multi-files package."
   (< 1 (length (eask-package-files))))
@@ -1711,11 +1743,6 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
           (unless (string= (buffer-string) "")
             (eask-msg (ansi-white (buffer-string)))))
       (eask-error "Help manual missig %s" help-file))))
-(defun eask--print-no-matching-files ()
-  "Print message for no matching files found."
-  (eask-log "")
-  (eask-log "Cannot find matching files with given pattern %s" (eask-args))
-  (eask-log ""))
 (defun eask--checker-existence ()
   "Return errors if required metadata is missing."
   (unless eask-package (eask-error "Missing metadata package; make sure you have create Eask-file with $ eask init!")))
