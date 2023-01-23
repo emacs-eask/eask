@@ -85,22 +85,6 @@
        (cond ((eask-json-p) #'eask--write-json-format)
              (t             #'eask--write-plain-text))
        level msg))))
-(defmacro eask--save-eask-file-state (&rest body)
-  "Execute BODY without touching the Eask-file global variables."
-  (declare (indent 0) (debug t))
-  `(let (package-archives
-         package-archive-priorities
-         eask-package
-         eask-package-desc
-         eask-website-url
-         eask-keywords
-         eask-package-file
-         eask-files
-         eask-scripts
-         eask-depends-on-emacs
-         eask-depends-on
-         eask-depends-on-dev)
-     ,@body))
 (defun eask--check-file (files)
   "Lint list of Eask FILES."
   (let (checked-files content)
@@ -577,6 +561,48 @@
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
 
+;; ~/lisp/link/add.el
+(defvar eask--link-package-name)
+(defvar eask--link-package-version)
+(defun eask--create-link (name source)
+  "Add link with NAME to PATH."
+  (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
+         (link-path (expand-file-name dir-name package-user-dir)))
+    (when (file-exists-p link-path)
+      (ignore-errors (delete-file link-path))
+      (ignore-errors (delete-directory link-path t)))
+    (make-symbolic-link source link-path)
+    (eask-msg "")
+    (eask-info "✓ Created link from %s to %s" source (eask-f-filename link-path))))
+
+;; ~/lisp/link/delete.el
+(defun eask--delete-link (name)
+  "Delete a link by its' NAME."
+  (let* ((links (eask--links))
+         (source (assoc name links))
+         (link (expand-file-name name package-user-dir)))
+    (if (and source (file-symlink-p link))
+        (progn
+          (ignore-errors (delete-file link))
+          (ignore-errors (delete-directory link t))
+          (eask-info "✓ Unlinked package %s" link)
+          t)
+      (eask-info "✗ Package %s not linked" name)
+      nil)))
+
+;; ~/lisp/link/list.el
+(defun eask--links ()
+  "Return a list of all links."
+  (mapcar
+   (lambda (file)
+     (cons (eask-f-filename file) (file-truename file)))
+   (cl-remove-if-not #'file-symlink-p (directory-files package-user-dir t))))
+(defun eask--print-link (link offset)
+  "Print information regarding the LINK.
+
+The argument OFFSET is used to align the result."
+  (message (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
+
 ;; ~/lisp/lint/checkdoc.el
 (defvar eask--checkdoc-errors nil "Error flag.")
 (defun eask--checkdoc-print-error (text start end &optional unfixable)
@@ -850,6 +876,9 @@ the `eask-start' execution.")
   (let ((result 0))
     (mapc (lambda (elm) (setq result (max result (length (eask-2str elm))))) sequence)
     result))
+(defun eask-f-filename (path)
+  "Return the name of PATH."
+  (file-name-nondirectory (directory-file-name path)))
 (defun eask-s-replace (old new s)
   "Replace OLD with NEW in S each time it occurs."
   (if (fboundp #'string-replace)
@@ -1379,6 +1408,22 @@ This uses function `locate-dominating-file' to look up directory tree."
 (defvar eask-depends-on-emacs nil)
 (defvar eask-depends-on       nil)
 (defvar eask-depends-on-dev   nil)
+(defmacro eask--save-eask-file-state (&rest body)
+  "Execute BODY without touching the Eask-file global variables."
+  (declare (indent 0) (debug t))
+  `(let (package-archives
+         package-archive-priorities
+         eask-package
+         eask-package-desc
+         eask-website-url
+         eask-keywords
+         eask-package-file
+         eask-files
+         eask-scripts
+         eask-depends-on-emacs
+         eask-depends-on
+         eask-depends-on-dev)
+     ,@body))
 (defun eask-package--get (key)
   "Return package info by KEY."
   (plist-get eask-package key))
