@@ -578,7 +578,11 @@
   "Add link with NAME to PATH."
   (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
          (link-path (expand-file-name dir-name package-user-dir)))
-    (eask--delete-symlink link-path)
+    (when (file-exists-p link-path)
+      (eask-with-progress
+        "!! The link already present; override the existing link... "
+        (eask--delete-symlink link-path)
+        "done ✓"))
     (make-symbolic-link source link-path)
     (eask-msg "")
     (eask-info "✓ Created link from %s to %s" source (eask-f-filename link-path))))
@@ -596,9 +600,9 @@
     (if (and source (file-symlink-p link))
         (progn
           (eask--delete-symlink link)
-          (eask-info "✓ Unlinked package `%s`" link)
+          (eask-info "✓ Package `%s` unlinked" name)
           t)
-      (eask-info "✗ Package `%s` not linked" name)
+      (eask-info "✗ No linked package name `%s`" name)
       nil)))
 
 ;; ~/lisp/link/list.el
