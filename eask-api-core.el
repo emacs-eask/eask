@@ -90,11 +90,8 @@
   (let (checked-files content)
     ;; Linting
     (dolist (file files)
-      (eask--save-eask-file-state
-        (eask--setup-env
-          (eask--alias-env
-            (when (ignore-errors (load file 'noerror t))
-              (push file checked-files))))))
+      (eask--save-load-eask-file file
+          (push file checked-files)))
 
     ;; Print result
     (eask-msg "")
@@ -124,6 +121,10 @@
 ;; ~/lisp/clean/all.el
 (defvar eask-no-cleaning-operation-p nil
   "Set to non-nil if there is no cleaning operation done.")
+(defvar eask--clean-tasks-total 0
+  "Total clean tasks.")
+(defvar eask--clean-tasks-cleaned 0
+  "Total cleaned tasks")
 (defmacro eask--clean-section (title &rest body)
   "Print clean up TITLE and execute BODY."
   (declare (indent 1))
@@ -131,7 +132,12 @@
      (eask-with-progress
        (format "%s... " ,title)
        (eask-with-verbosity 'debug ,@body)
-       (if eask-no-cleaning-operation-p "skipped ✗" "done ✓"))))
+       (progn
+         (cl-incf eask--clean-tasks-total)
+         (if eask-no-cleaning-operation-p
+             "skipped ✗"
+           (cl-incf eask--clean-tasks-cleaned)
+           "done ✓")))))
 
 ;; ~/lisp/clean/autoloads.el
 
@@ -297,7 +303,7 @@
 ;; ~/lisp/core/install.el
 (defun eask--install-packages (names)
   "Install packages."
-  (let* ((names (mapcar #'intern names))
+  (let* ((names (mapcar #'eask-intern names))
          (len (length names)) (s (eask--sinr len "" "s"))
          (pkg-not-installed (cl-remove-if #'package-installed-p names))
          (installed (length pkg-not-installed)) (skipped (- len installed)))
@@ -440,7 +446,7 @@
 ;; ~/lisp/core/reinstall.el
 (defun eask--reinstall-packages (names)
   "Install packages."
-  (let* ((names (mapcar #'intern names))
+  (let* ((names (mapcar #'eask-intern names))
          (len (length names)) (s (eask--sinr len "" "s"))
          (pkg-not-installed (cl-remove-if #'package-installed-p names))
          (installed (length pkg-not-installed)) (skipped (- len installed)))
@@ -487,7 +493,7 @@
 ;; ~/lisp/core/uninstall.el
 (defun eask--uninstall-packages(names)
   "Uninstall packages."
-  (let* ((names (mapcar #'intern names))
+  (let* ((names (mapcar #'eask-intern names))
          (len (length names)) (s (eask--sinr len "" "s"))
          (pkg-installed (cl-remove-if-not #'package-installed-p names))
          (deleted (length pkg-installed)) (skipped (- len deleted)))
@@ -562,20 +568,26 @@
   (string-trim (shell-command-to-string "git config user.email")))
 
 ;; ~/lisp/link/add.el
-(defvar eask--link-package-name)
-(defvar eask--link-package-version)
+(defun eask--package-desc-reqs (desc)
+  "Return a list of requirements from package DESC."
+  (cl-remove-if (lambda (name) (string= name "emacs"))
+                (mapcar #'car (package-desc-reqs desc))))
+(defvar eask--link-package-name    nil "Used to form package name.")
+(defvar eask--link-package-version nil "Used to form package name.")
 (defun eask--create-link (name source)
   "Add link with NAME to PATH."
   (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
          (link-path (expand-file-name dir-name package-user-dir)))
-    (when (file-exists-p link-path)
-      (ignore-errors (delete-file link-path))
-      (ignore-errors (delete-directory link-path t)))
+    (eask--delete-symlink link-path)
     (make-symbolic-link source link-path)
     (eask-msg "")
     (eask-info "✓ Created link from %s to %s" source (eask-f-filename link-path))))
 
 ;; ~/lisp/link/delete.el
+(defun eask--delete-symlink (path)
+  "Delete symlink PATH."
+  (ignore-errors (delete-file path))
+  (ignore-errors (delete-directory path t)))
 (defun eask--delete-link (name)
   "Delete a link by its' NAME."
   (let* ((links (eask--links))
@@ -583,11 +595,10 @@
          (link (expand-file-name name package-user-dir)))
     (if (and source (file-symlink-p link))
         (progn
-          (ignore-errors (delete-file link))
-          (ignore-errors (delete-directory link t))
-          (eask-info "✓ Unlinked package %s" link)
+          (eask--delete-symlink link)
+          (eask-info "✓ Unlinked package `%s`" link)
           t)
-      (eask-info "✗ Package %s not linked" name)
+      (eask-info "✗ Package `%s` not linked" name)
       nil)))
 
 ;; ~/lisp/link/list.el
@@ -1424,6 +1435,15 @@ This uses function `locate-dominating-file' to look up directory tree."
          eask-depends-on
          eask-depends-on-dev)
      ,@body))
+(defmacro eask--save-load-eask-file (file success &rest error)
+  "Load an Eask FILE and execute BODY with"
+  (declare (indent 2) (debug t))
+  `(eask--save-eask-file-state
+     (eask--setup-env
+       (eask--alias-env
+         (if (ignore-errors (load ,file 'noerror t))
+             (progn ,success)
+           ,@error)))))
 (defun eask-package--get (key)
   "Return package info by KEY."
   (plist-get eask-package key))
