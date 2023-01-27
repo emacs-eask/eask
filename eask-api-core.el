@@ -312,6 +312,37 @@
     (eask-msg "")
     (eask-info "(Total of %s package%s installed, %s skipped)"
                installed s skipped)))
+(defun eask--package-install-file (file)
+  ;; Workaround: `package-install-file' fails when FILE is .el and contains CRLF EOLs:
+  ;; https://debbugs.gnu.org/cgi/bugreport.cgi?bug=48137
+  (if (not (string-match "\\.el\\'" file))
+      (package-install-file file)
+
+    ;; load package file and check if it contains CRLFs
+    (with-temp-buffer
+      (insert-file-contents-literally file)
+      (goto-char (point-min))
+      (if (not (search-forward "\r\n" nil t))
+          (package-install-file file) ;; no cllf
+
+        ;; CRLF found
+        (let* ((nondir (file-name-nondirectory file))
+               (temp-dir (make-temp-file "eask" t))
+               (temp-file (expand-file-name nondir temp-dir)))
+
+          (unwind-protect
+              ;; replace CRLFs with LFs and write to new temporary
+              ;; package file
+              (progn
+                (replace-match "\n" nil t)
+                (while (search-forward "\r\n" nil t)
+                  (replace-match "\n" nil t))
+                (write-region (point-min) (point-max) temp-file)
+
+                (package-install-file temp-file))
+
+            ;; clean up temporary file
+            (delete-directory temp-dir t)))))))
 
 ;; ~/lisp/core/keywords.el
 
