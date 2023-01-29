@@ -1,4 +1,4 @@
-;;; eask-api.el --- Core Eask APIs  -*- lexical-binding: t; -*-
+;;; eask.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022-2023  Shen, Jen-Chieh
 
@@ -116,7 +116,7 @@ This is a simpliy version of `eask--all-files' function."
 
 ;;;###autoload
 (defun eask-api-setup ()
-  "Set up for `eask-api'.
+  "Set up for Eask API.
 
 Since this is the entry, we only check for the project root and current
 workspace.  The full version uses function `locate-dominating-file' to search
@@ -127,8 +127,8 @@ for Eask-files, but we don't want to do that for our entry."
          (root (if e-default default-directory proj-root))
          (files (or e-default e-project)))
     (when files
-      (require 'eask-api-core)
+      (require 'eask-core)
       (list :root root :files files))))
 
-(provide 'eask-api)
-;;; eask-api.el ends here
+(provide 'eask)
+;;; eask.el ends here

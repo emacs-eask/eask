@@ -1,4 +1,4 @@
-;;; eask-api-core.el --- Core Eask APIs  -*- lexical-binding: t; -*-
+;;; eask-core.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022-2023  Shen, Jen-Chieh
 
@@ -1928,9 +1928,9 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
   "Name of default target directory for building packages."
   :type 'string)
 
-(provide 'eask-api-core)
+(provide 'eask-core)
 ;; Local Variables:
 ;; coding: utf-8
 ;; no-byte-compile: t
 ;; End:
-;;; eask-api-core.el ends here
+;;; eask-core.el ends here

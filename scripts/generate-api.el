@@ -10,7 +10,7 @@
 ;;
 ;;; Generate it
 
-(with-current-buffer (find-file (locate-project-file "eask-api-core.el"))
+(with-current-buffer (find-file (locate-project-file "eask-core.el"))
   (erase-buffer)
   (insert-file-contents (locate-project-file "templates/source.el"))
 
