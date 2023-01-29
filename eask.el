@@ -1,4 +1,4 @@
-;;; eask.el ---   -*- lexical-binding: t; -*-
+;;; eask.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023  Shen, Jen-Chieh
 
