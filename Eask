@@ -1,15 +1,16 @@
-(package "eask-api"
+(package "eask"
          "0.1.0"
          "Core Eask APIs")
 
 (website-url "https://github.com/emacs-eask/eask-api")
 (keywords "lisp" "eask" "api")
 
-(package-file "eask-api.el")
+(package-file "eask.el")
 
 (script "test" "echo \"Error: no test specified\" && exit 1")
 
-(files "eask-api-core.el")
+(files "eask-api.el"
+       "eask-core.el")
 
 (source "gnu")
 (source "melpa")

@@ -1,6 +1,13 @@
-;;; eask-core.el --- Core Eask APIs  -*- lexical-binding: t; -*-
+;;; eask.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2022-2023  Shen, Jen-Chieh
+;; Copyright (C) 2023  Shen, Jen-Chieh
+
+;; Author: Shen, Jen-Chieh <jcs090218@gmail.com>
+;; Maintainer: Shen, Jen-Chieh <jcs090218@gmail.com>
+;; URL: https://github.com/emacs-eask/eask-api
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "26.1"))
+;; Keywords: lisp eask api
 
 ;; This file is not part of GNU Emacs.
 
@@ -19,17 +26,12 @@
 
 ;;; Commentary:
 ;;
-;; Core Eask APIs
-;;
-;; This file is generated from a template file, see templates/source.el file.
+;; Entry file to preempt the name `eask'
 ;;
 
 ;;; Code:
-{ SOURCE }
 
-(provide 'eask-core)
-;; Local Variables:
-;; coding: utf-8
-;; no-byte-compile: t
-;; End:
-;;; eask-core.el ends here
+(require 'eask-api)
+
+(provide 'eask)
+;;; eask.el ends here

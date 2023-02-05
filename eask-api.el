@@ -2,13 +2,6 @@
 
 ;; Copyright (C) 2022-2023  Shen, Jen-Chieh
 
-;; Author: Shen, Jen-Chieh <jcs090218@gmail.com>
-;; Maintainer: Shen, Jen-Chieh <jcs090218@gmail.com>
-;; URL: https://github.com/emacs-eask/eask-api
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "26.1"))
-;; Keywords: lisp eask api
-
 ;; This file is not part of GNU Emacs.
 
 ;; This program is free software: you can redistribute it and/or modify
