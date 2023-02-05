@@ -1,4 +1,4 @@
-;;; eask-api-core.el --- Core Eask APIs  -*- lexical-binding: t; -*-
+;;; eask-core.el --- Core Eask APIs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022-2023  Shen, Jen-Chieh
 
@@ -27,9 +27,9 @@
 ;;; Code:
 { SOURCE }
 
-(provide 'eask-api-core)
+(provide 'eask-core)
 ;; Local Variables:
 ;; coding: utf-8
 ;; no-byte-compile: t
 ;; End:
-;;; eask-api-core.el ends here
+;;; eask-core.el ends here
