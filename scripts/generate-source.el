@@ -1,4 +1,4 @@
-;;; generate-api.el --- Generate source  -*- lexical-binding: t; -*-
+;;; generate-source.el --- Generate source  -*- lexical-binding: t; -*-
 ;;; Commentary:
 ;;; Code:
 
@@ -51,4 +51,4 @@
 
   (save-buffer))
 
-;;; generate-api.el ends here
+;;; generate-source.el ends here

@@ -36,7 +36,7 @@ jobs:
       with:
         version: 'snapshot'
 
-    - name: Build source - eask-api.el
+    - name: Build source - eask-core.el
       continue-on-error: true
       run:
         make build-source
@@ -51,5 +51,5 @@ jobs:
       run: |
         git pull
         git add .
-        git commit -m "Update source, eask-api.el"
+        git commit -m "Update source, eask-core.el"
         git push

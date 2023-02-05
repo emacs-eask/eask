@@ -7,7 +7,7 @@ ci: clean package install compile
 
 build-source:
 	@echo "Building source..."
-	$(EASK) load "scripts/generate-api.el" --allow-error
+	$(EASK) load "scripts/generate-source.el" --allow-error
 
 generate_badges_system:
 	@echo "Generating system badges.."
