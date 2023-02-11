@@ -12,7 +12,7 @@
 [![System](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml)
 
 The goal of this package is to provide function signatures so you can
-develop Eask with your elisp enviornment. Few improtanet feature that
+develop Eask with your elisp environment. Few important feature that
 this package can do:
 
 1. Provide auto-completion with `capf` (`auto-complete`, `company`, `corfu`, etc)
