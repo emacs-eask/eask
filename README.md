@@ -18,8 +18,9 @@ this package can do:
 1. Provide auto-completion with `capf` (`auto-complete`, `company`, `corfu`, etc)
 2. Provide function signatures and display arglist (`eldoc`)
 
-Generally, you would not want to call any of the function from your Emacs
-editor enviornment. Unless you are extending Eask's core functionalities.
+Generally, you would not want to call any of these functions or use any of
+these variables from your Emacs editor enviornment. Unless you are extending
+Eask's core functionalities.
 
 ## 🔨 Usage
 
@@ -29,7 +30,7 @@ Call the following whenever you need to know Eask's API.
 (require 'eask-core)
 ```
 
-Or enable it when the project is a valid Eask project
+Or enable it when the project is a valid Eask project,
 
 ```elisp
 (add-hook 'emacs-lisp-hook #'eask-api-setup)
