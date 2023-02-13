@@ -403,6 +403,11 @@
 (defun eask--print-load-path (path)
   "Print out the PATH."
   (message "%s" path))
+(defun eask--filter-path (path)
+  "Filter the PATH out by search regex."
+  (cl-some (lambda (regex)
+             (string-match-p regex path))
+           (eask-args)))
 
 ;; ~/lisp/core/load.el
 
