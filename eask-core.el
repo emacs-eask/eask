@@ -722,7 +722,7 @@ The argument OFFSET is used to align the result."
 ;; ~/lisp/lint/elsa.el
 (defconst eask--elsa-version nil
   "Elsa version.")
-(defun eask--elsa-process-file (filename)
+(defun eask--elsa-analyse-file (filename)
   "Process FILENAME."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
@@ -730,7 +730,7 @@ The argument OFFSET is used to align the result."
     (eask-msg "")
     (eask-msg "`%s` with elsa (%s)" (ansi-green file) eask--elsa-version)
     (eask-with-verbosity 'debug
-      (setq errors (oref (elsa-process-file filename) errors)))
+      (setq errors (oref (elsa-analyse-file filename) errors)))
     (if errors
         (--each (reverse errors)
           (let ((line (string-trim (concat file ":" (elsa-message-format it)))))
