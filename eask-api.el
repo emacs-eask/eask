@@ -120,7 +120,7 @@ for Eask-files, but we don't want to do that for our entry."
          (root (if e-default default-directory proj-root))
          (files (or e-default e-project)))
     (when files
-      (require 'eask-api-core)
+      (require 'eask-core)
       (list :root root :files files))))
 
 (provide 'eask-api)
