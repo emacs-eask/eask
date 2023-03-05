@@ -468,7 +468,7 @@
                          (list (if (stringp (car elm)) (intern (car elm)) (car elm))
                                (if (= (length (cdr elm)) 1)
                                    (nth 0 (cdr elm))
-                                 "latest")))
+                                 "0")))
                        (append eask-depends-on-emacs eask-depends-on))))
     (setq eask--pkg-filename pkg-file)
     (write-region
@@ -615,13 +615,14 @@
   (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
          (link-path (expand-file-name dir-name package-user-dir)))
     (when (file-exists-p link-path)
+      (eask-msg "")
       (eask-with-progress
-        (ansi-yellow "!! The link already present; override the existing link... ")
+        (ansi-yellow "!! The link is already presented; override the existing link... ")
         (eask--delete-symlink link-path)
-        (ansi-yellow "done ✓")))
+        (ansi-yellow "done !!")))
     (make-symbolic-link source link-path)
     (eask-msg "")
-    (eask-info "✓ Created link from %s to %s" source (eask-f-filename link-path))))
+    (eask-info "(Created link from `%s` to `%s`)" source (eask-f-filename link-path))))
 
 ;; ~/lisp/link/delete.el
 (defun eask--delete-symlink (path)
@@ -1143,7 +1144,7 @@ the `eask-start' execution.")
                         (eask-package--version pkg nil))))
       (package-version-join version)
     ;; Just in case, but this should never happens!
-    "latest"))
+    "0"))
 (defun eask-package-desc-url ()
   "Return url from package descriptor."
   (when eask-package-desc
@@ -1466,6 +1467,8 @@ This uses function `locate-dominating-file' to look up directory tree."
   (declare (indent 0) (debug t))
   `(let (package-archives
          package-archive-priorities
+         eask-file
+         eask-file-root
          eask-package
          eask-package-desc
          eask-website-url
@@ -1484,7 +1487,8 @@ This uses function `locate-dominating-file' to look up directory tree."
   `(eask--save-eask-file-state
      (eask--setup-env
        (eask--alias-env
-         (if (ignore-errors (load ,file 'noerror t))
+         (if (let ((default-directory (file-name-directory ,file)))
+               (ignore-errors (eask-file-load ,file)))
              (progn ,success)
            ,@error)))))
 (defun eask-package--get (key)
@@ -1620,7 +1624,7 @@ This uses function `locate-dominating-file' to look up directory tree."
         recipe)))
    ;; No argument specify
    ((<= (length args) 1)
-    (let* ((minimum-version (or (car args) "latest"))
+    (let* ((minimum-version (or (car args) "0"))
            (recipe (list pkg minimum-version)))
       (if (member recipe eask-depends-on)
           (eask-error "Define dependencies with the same name `%s'" pkg)
