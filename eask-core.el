@@ -603,6 +603,32 @@
      (pp-to-string `(define-package ,name ,version ,description ',reqs))
      nil pkg-file)))
 
+;; ~/lisp/init/cask.el
+(defun eask--convert-cask (filename)
+  "Convert Cask FILENAME to Eask."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         (new-file (eask-s-replace "Cask" "Eask" file))
+         (new-filename (expand-file-name new-file))
+         (converted))
+    (eask-with-progress
+      (format "Converting file `%s` to `%s`... " file new-file)
+      (eask-with-verbosity 'debug
+        (cond ((not (string-prefix-p "Cask" file))
+               (eask-debug "✗ Invalid Cask filename, the file should start with `Cask`"))
+              ((file-exists-p new-filename)
+               (eask-debug "✗ The file `%s` already presented" new-file))
+              (t
+               (with-current-buffer (find-file new-filename)
+                 (insert-file-contents file)
+                 (goto-char (point-min))
+                 (while (re-search-forward "(source " nil t)
+                   (insert "'"))  ; make it symbol
+                 (save-buffer))
+               (setq converted t))))
+      (if converted "done ✓" "skipped ✗"))
+    converted))
+
 ;; ~/lisp/link/add.el
 (defun eask--package-desc-reqs (desc)
   "Return a list of requirements from package DESC."
@@ -874,7 +900,7 @@ will return `lint-checkdoc' with a dash between two subcommands."
       (concat module-name "-" script-file))))
 (defun eask-special-p ()
   "Return t if the command that can be run without Eask-file existence."
-  (member (eask-command) '("keywords")))
+  (member (eask-command) '("init-cask" "keywords")))
 (defun eask-checker-p ()
   "Return t if running Eask as the checker."
   (member (eask-command) '("check-eask")))
@@ -1189,6 +1215,7 @@ the `eask-start' execution.")
 (defun eask-https-proxy () (eask--flag-value "--https-proxy"))  ; --https-proxy
 (defun eask-no-proxy ()    (eask--flag-value "--no-proxy"))     ; --no-proxy
 (defun eask-destination () (eask--flag-value "--dest"))         ; --dest, --destination
+(defun eask-from ()        (eask--flag-value "--from"))         ; --from
 (defun eask-depth () (eask--str2num (eask--flag-value "--depth")))       ; --depth
 (defun eask-verbose () (eask--str2num (eask--flag-value "--verbose")))   ; -v, --verbose
 (defun eask--handle-global-options ()
@@ -1237,7 +1264,8 @@ other scripts internally.  See function `eask-call'.")
    '("--output"
      "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
      "--verbose" "--silent"
-     "--depth" "--dest"))
+     "--depth" "--dest"
+     "--from"))
   "List of arguments (number/string) type options.")
 (defconst eask--command-list
   (append eask--option-switches eask--option-args)
@@ -1313,7 +1341,8 @@ Eask file in the workspace."
 (defvar eask-file-root nil "The Eask file's directory.")
 (defun eask-root-del (filename)
   "Remove Eask file root path from FILENAME."
-  (when (stringp filename) (eask-s-replace eask-file-root "" filename)))
+  (when (stringp filename)
+    (eask-s-replace (or eask-file-root default-directory) "" filename)))
 (defun eask-file-load (location &optional noerror)
   "Load Eask file in the LOCATION."
   (when-let* ((target-eask-file (expand-file-name location user-emacs-directory))
@@ -1874,15 +1903,28 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
         (setq deleted (and deleted (not (file-exists-p filename)))))
       (if deleted "done ✓" "skipped ✗"))
     deleted))
+(defun eask--help-display ()
+  "Display help instruction."
+  (goto-char (point-min))
+  (let ((max-column 0))
+    (while (not (eobp))
+      (forward-line 1)
+      (goto-char (line-beginning-position))
+      (insert "  ")
+      (goto-char (line-end-position))
+      (setq max-column (max (current-column) max-column)))
+    (eask-msg (concat "''" (spaces-string max-column) "''"))
+    (eask-msg (ansi-white (buffer-string)))
+    (eask-msg (concat "''" (spaces-string max-column) "'" "'"))))
 (defun eask-help (command)
-  "Show help."
+  "Show COMMAND's help instruction."
   (let* ((command (eask-2str command))  ; convert to string
          (help-file (concat eask-lisp-root "help/" command)))
     (if (file-exists-p help-file)
         (with-temp-buffer
           (insert-file-contents help-file)
           (unless (string= (buffer-string) "")
-            (eask-msg (ansi-white (buffer-string)))))
+            (eask--help-display)))
       (eask-error "Help manual missig %s" help-file))))
 (defun eask--checker-existence ()
   "Return errors if required metadata is missing."
