@@ -216,8 +216,6 @@
          (eask--length-priority (eask-2str (eask-seq-str-max priorities))))
     (mapc #'eask--print-archive alist)))
 
-;; ~/lisp/core/autoloads.el
-
 ;; ~/lisp/core/compile.el
 (defconst eask-compile-log-buffer-name "*Compile-Log*"
   "Byte-compile log buffer name.")
@@ -450,31 +448,6 @@
   (if (eask-package-multi-p) (eask--packaged-file "tar")
     (eask--packaged-file "el")))
 
-;; ~/lisp/core/pkg-file.el
-(defvar eask--pkg-filename)
-(defun eask--generate-from-pkg-desc ()
-  "Generate pkg-file from a package-descriptor."
-  (let* ((name (package-desc-name eask-package-desc))
-         (pkg-file (expand-file-name (format "%s-pkg.el" name))))
-    (setq eask--pkg-filename pkg-file)
-    (package-generate-description-file eask-package-desc pkg-file)))
-(defun eask--generate-from-eask-file ()
-  "Generate pkg-file from Eask file."
-  (let* ((name (eask-guess-package-name))
-         (pkg-file (expand-file-name (concat name "-pkg.el")))
-         (version (eask-package-version))
-         (description (eask-package-description))
-         (reqs (mapcar (lambda (elm)
-                         (list (if (stringp (car elm)) (intern (car elm)) (car elm))
-                               (if (= (length (cdr elm)) 1)
-                                   (nth 0 (cdr elm))
-                                 "0")))
-                       (append eask-depends-on-emacs eask-depends-on))))
-    (setq eask--pkg-filename pkg-file)
-    (write-region
-     (pp-to-string `(define-package ,name ,version ,description ',reqs))
-     nil pkg-file)))
-
 ;; ~/lisp/core/recipe.el
 
 ;; ~/lisp/core/refresh.el
@@ -602,6 +575,33 @@
 (defun eask--get-mail ()
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
+
+;; ~/lisp/generate/autoloads.el
+
+;; ~/lisp/generate/pkg-file.el
+(defvar eask--pkg-filename)
+(defun eask--generate-from-pkg-desc ()
+  "Generate pkg-file from a package-descriptor."
+  (let* ((name (package-desc-name eask-package-desc))
+         (pkg-file (expand-file-name (format "%s-pkg.el" name))))
+    (setq eask--pkg-filename pkg-file)
+    (package-generate-description-file eask-package-desc pkg-file)))
+(defun eask--generate-from-eask-file ()
+  "Generate pkg-file from Eask file."
+  (let* ((name (eask-guess-package-name))
+         (pkg-file (expand-file-name (concat name "-pkg.el")))
+         (version (eask-package-version))
+         (description (eask-package-description))
+         (reqs (mapcar (lambda (elm)
+                         (list (if (stringp (car elm)) (intern (car elm)) (car elm))
+                               (if (= (length (cdr elm)) 1)
+                                   (nth 0 (cdr elm))
+                                 "0")))
+                       (append eask-depends-on-emacs eask-depends-on))))
+    (setq eask--pkg-filename pkg-file)
+    (write-region
+     (pp-to-string `(define-package ,name ,version ,description ',reqs))
+     nil pkg-file)))
 
 ;; ~/lisp/link/add.el
 (defun eask--package-desc-reqs (desc)
