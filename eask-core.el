@@ -1645,7 +1645,8 @@ This uses function `locate-dominating-file' to look up directory tree."
         (setq eask-depends-on-recipe-p t))
       recipe))))
 (defun eask-f-development (&rest dep)
-  "Development scope."
+  "Development scope with list of DEP."
+  (setq dep (cl-remove-if #'null dep))  ; make sure no `nil', see #143
   (dolist (pkg dep)
     (push pkg eask-depends-on-dev)
     (delete-dups eask-depends-on-dev)
