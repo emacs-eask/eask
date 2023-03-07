@@ -883,7 +883,7 @@ The argument OFFSET is used to align the result."
                                   (member "-l" command-line-args)))
   "Script currently executing.")
 (defconst eask-lisp-root
-  (let* ((script (file-name-directory eask--script))
+  (let* ((script (ignore-errors (file-name-directory eask--script)))
          (dir (ignore-errors (expand-file-name (concat script "../"))))
          (basename (file-name-nondirectory (directory-file-name dir)))
          (root (expand-file-name "/")))
