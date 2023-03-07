@@ -576,7 +576,13 @@
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
 
+;; ~/lisp/generate/workflow/circle-ci.el
+
 ;; ~/lisp/generate/workflow/github.el
+
+;; ~/lisp/generate/workflow/gitlab.el
+
+;; ~/lisp/generate/workflow/travis-ci.el
 
 ;; ~/lisp/generate/autoloads.el
 
