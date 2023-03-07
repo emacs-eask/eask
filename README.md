@@ -4,12 +4,12 @@
 
 <a href="#"><img align="right" src="https://raw.githubusercontent.com/emacs-eask/cli/master/docs/static/logo.png" width="20%"></a>
 
-# eask-api
+# eask
 > Core Eask APIs
 
-[![Build](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/build.yml)
-[![CI](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/test.yml)
-[![System](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml/badge.svg)](https://github.com/emacs-eask/eask-api/actions/workflows/system.yml)
+[![Build](https://github.com/emacs-eask/eask/actions/workflows/build.yml/badge.svg)](https://github.com/emacs-eask/eask/actions/workflows/build.yml)
+[![CI](https://github.com/emacs-eask/eask/actions/workflows/test.yml/badge.svg)](https://github.com/emacs-eask/eask/actions/workflows/test.yml)
+[![System](https://github.com/emacs-eask/eask/actions/workflows/system.yml/badge.svg)](https://github.com/emacs-eask/eask/actions/workflows/system.yml)
 
 The goal of this package is to provide function signatures so you can
 develop Eask with your elisp environment. Few important feature that

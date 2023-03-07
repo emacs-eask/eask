@@ -2,7 +2,7 @@
          "0.1.0"
          "Core Eask APIs")
 
-(website-url "https://github.com/emacs-eask/eask-api")
+(website-url "https://github.com/emacs-eask/eask")
 (keywords "lisp" "eask" "api")
 
 (package-file "eask.el")
