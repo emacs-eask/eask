@@ -609,7 +609,7 @@
 (defun eask--convert-cask (filename)
   "Convert Cask FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
+         (file (file-name-nondirectory (eask-root-del filename)))
          (new-file (eask-s-replace "Cask" "Eask" file))
          (new-filename (expand-file-name new-file))
          (converted))
@@ -625,7 +625,9 @@
                  (insert-file-contents file)
                  (goto-char (point-min))
                  (while (re-search-forward "(source " nil t)
-                   (insert "'"))  ; make it symbol
+                   (forward-word 1)
+                   (forward-word -1)  ; make sure infront of the word
+                   (insert "'"))      ; make it symbol
                  (save-buffer))
                (setq converted t))))
       (if converted "done ✓" "skipped ✗"))
