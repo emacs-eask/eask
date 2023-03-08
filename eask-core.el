@@ -577,10 +577,29 @@
   (string-trim (shell-command-to-string "git config user.email")))
 
 ;; ~/lisp/generate/workflow/circle-ci.el
+(defun eask--circle-ci-insert-jobs (version)
+  "Insert Circle CI's jobs instruction for specific Emacs' VERSION."
+  (insert "  test-ubuntu-emacs-" version ":" "\n")
+  (insert "    docker:" "\n")
+  (insert "      - image: silex/emacs:" version "-ci" "\n")
+  (insert "        entrypoint: bash" "\n")
+  (insert "    steps:" "\n")
+  (insert "      - setup" "\n")
+  (insert "      - test" "\n"))
 
 ;; ~/lisp/generate/workflow/github.el
 
 ;; ~/lisp/generate/workflow/gitlab.el
+(defun eask--gitlab-insert-jobs (version)
+  "Insert GitLab Runner's jobs instruction for specific Emacs' VERSION."
+  (insert "test-" version ":" "\n")
+  (insert "  image: silex/emacs:" version "-ci" "\n")
+  (insert "  script:" "\n")
+  (insert "    - eask clean all" "\n")
+  (insert "    - eask package" "\n")
+  (insert "    - eask install" "\n")
+  (insert "    - eask compile" "\n")
+  (insert "\n"))
 
 ;; ~/lisp/generate/workflow/travis-ci.el
 
