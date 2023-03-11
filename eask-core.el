@@ -605,6 +605,20 @@
 
 ;; ~/lisp/generate/autoloads.el
 
+;; ~/lisp/generate/license.el
+(defun eask--print-license-menu ()
+  "Print all available license."
+  (eask-msg "available via `eask generate license`")
+  (eask-msg "")
+  (let* ((names (license-templates-keys))
+         (offset (eask-seq-str-max names))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (data license-templates--data)
+      (eask-msg fmt (plist-get data :key) (plist-get data :name)))
+    (eask-msg "")
+    (eask-info "(Total of %s available license%s)" (length names)
+               (eask--sinr names "" "s"))))
+
 ;; ~/lisp/generate/pkg-file.el
 (defvar eask--pkg-filename)
 (defun eask--generate-from-pkg-desc ()
