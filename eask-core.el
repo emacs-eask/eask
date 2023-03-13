@@ -26,951 +26,6 @@
 
 ;;; Code:
 
-;; ~/lisp/checker/check-eask.el
-(defvar eask--checker-log nil)
-(defvar eask--checker-warnings nil)
-(defvar eask--checker-errors nil)
-(defun eask--pretty-json (json)
-  "Return pretty JSON."
-  (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
-(defun eask--column-at-point (point)
-  "Get column at POINT."
-  (save-excursion (goto-char point) (current-column)))
-(defun eask--load-buffer ()
-  "Return the current file loading session."
-  (car (cl-remove-if-not
-        (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
-(defun eask--write-json-format (level msg)
-  "Prepare log for JSON format."
-  (let* ((thing (thing-at-point 'sexp))
-         (bounds (bounds-of-thing-at-point 'sexp))
-         (filename (or load-file-name eask-file))
-         (start (car bounds))
-         (end (cdr bounds))
-         (start-line (if load-file-name (line-number-at-pos start) 0))
-         (start-col  (if load-file-name (eask--column-at-point start) 0))
-         (start-pos  (if load-file-name start 0))
-         (end-line   (if load-file-name (line-number-at-pos end) 0))
-         (end-col    (if load-file-name (eask--column-at-point end) 0))
-         (end-pos    (if load-file-name end 0))
-         (msg (ansi-color-filter-apply msg)))
-    (push `((range . ((start . ((line . ,start-line)
-                                (col  . ,start-col)
-                                (pos  . ,start-pos)))
-                      (end . ((line . ,end-line)
-                              (col  . ,end-col)
-                              (pos  . ,end-pos)))))
-            (filename . ,filename)
-            (message . ,msg))
-          (cl-case level
-            (`error eask--checker-errors)
-            (`warn  eask--checker-warnings)))))
-(defun eask--write-plain-text (level msg)
-  "Prepare log for plain text format."
-  (let* ((level-string (cl-case level
-                         (`error "Error")
-                         (`warn  "Warning")))
-         (log (format "%s:%s:%s %s: %s"
-                      (or load-file-name eask-file)
-                      (if load-file-name (line-number-at-pos) 0)
-                      (if load-file-name (current-column) 0)
-                      level-string
-                      msg)))
-    (push (ansi-color-filter-apply log) eask--checker-log)))
-(defun eask--write-log (level msg)
-  "Write the log."
-  (unless (string= " *temp*" (buffer-name))  ; avoid error from `package-file' directive
-    (with-current-buffer (or (eask--load-buffer) (buffer-name))
-      (funcall
-       (cond ((eask-json-p) #'eask--write-json-format)
-             (t             #'eask--write-plain-text))
-       level msg))))
-(defun eask--check-file (files)
-  "Lint list of Eask FILES."
-  (let (checked-files content)
-    ;; Linting
-    (dolist (file files)
-      (eask--save-load-eask-file file
-          (push file checked-files)))
-
-    ;; Print result
-    (eask-msg "")
-    (cond ((and (eask-json-p)  ; JSON format
-                (or eask--checker-warnings eask--checker-errors))
-           (setq content
-                 (eask--pretty-json (json-encode
-                                     `((warnings . ,eask--checker-warnings)
-                                       (errors   . ,eask--checker-errors)))))
-           (eask-msg content))
-          (eask--checker-log  ; Plain text
-           (setq content
-                 (with-temp-buffer
-                   (dolist (msg (reverse eask--checker-log))
-                     (insert msg "\n"))
-                   (buffer-string)))
-           (mapc #'eask-msg (reverse eask--checker-log)))
-          (t
-           (eask-info "(Checked %s file%s)"
-                      (length checked-files)
-                      (eask--sinr checked-files "" "s"))))
-
-    ;; Output file
-    (when (and content (eask-output))
-      (write-region content nil (eask-output)))))
-
-;; ~/lisp/clean/all.el
-(defvar eask-no-cleaning-operation-p nil
-  "Set to non-nil if there is no cleaning operation done.")
-(defvar eask--clean-tasks-total 0
-  "Total clean tasks.")
-(defvar eask--clean-tasks-cleaned 0
-  "Total cleaned tasks")
-(defmacro eask--clean-section (title &rest body)
-  "Print clean up TITLE and execute BODY."
-  (declare (indent 1))
-  `(let (eask-no-cleaning-operation-p)
-     (eask-with-progress
-       (format "%s... " ,title)
-       (eask-with-verbosity 'debug ,@body)
-       (progn
-         (cl-incf eask--clean-tasks-total)
-         (if eask-no-cleaning-operation-p
-             "skipped ✗"
-           (cl-incf eask--clean-tasks-cleaned)
-           "done ✓")))))
-
-;; ~/lisp/clean/autoloads.el
-
-;; ~/lisp/clean/dist.el
-(defun eask--clean-dist (path)
-  "Clean up dist PATH."
-  (let* ((name (eask-guess-package-name))
-         (version (eask-package-version))
-         (readme (expand-file-name (format "%s-readme.txt" name) path))
-         (entry (expand-file-name (format "%s-%s.entry" name version) path))
-         (packaged (eask-packaged-file))
-         (deleted 0)
-         (delete-dir))
-    (when (eask-delete-file readme)   (cl-incf deleted))
-    (when (eask-delete-file entry)    (cl-incf deleted))
-    (when (eask-delete-file packaged) (cl-incf deleted))
-    (when (and (not (zerop deleted)) (directory-empty-p path))
-      (eask-with-progress
-        (format "The dist folder %s seems to be empty, delete it as well... " path)
-        (ignore-errors (delete-directory path))
-        "done ✓")
-      (setq delete-dir t))
-    (eask-msg "")
-    (eask-info "(Total of %s file%s, and %s directory deleted)" deleted
-               (eask--sinr deleted "" "s")
-               (if delete-dir "1" "0"))))
-
-;; ~/lisp/clean/elc.el
-
-;; ~/lisp/clean/log-file.el
-(defun eask--clean-log (path)
-  "Clean up .log PATH."
-  (let ((log-files '("messages.log"
-                     "warnings.log"
-                     "backtrace.log"
-                     "compile-log.log"))
-        (deleted 0)
-        (delete-dir))
-    (dolist (log-file log-files)
-      (when (eask-delete-file (expand-file-name log-file path))
-        (cl-incf deleted)))
-    (when (and (not (zerop deleted)) (directory-empty-p path))
-      (eask-with-progress
-        (format "The dist folder %s seems to be empty, delete it as well... " path)
-        (ignore-errors (delete-directory path))
-        "done ✓")
-      (setq delete-dir t))
-    (eask-msg "")
-    (eask-info "(Total of %s log file%s deleted, %s skipped)" deleted
-               (eask--sinr deleted "" "s")
-               (- (length log-files) deleted))))
-
-;; ~/lisp/clean/pkg-file.el
-
-;; ~/lisp/clean/workspace.el
-
-;; ~/lisp/core/archives.el
-(defvar eask--length-name)
-(defvar eask--length-url)
-(defvar eask--length-priority)
-(defun eask--print-archive (archive)
-  "Print the archive."
-  (let* ((name (car archive))
-         (url (cdr archive))
-         (priority (assoc name package-archive-priorities))
-         (priority (cdr priority)))
-    (message (concat "  %-" eask--length-name "s  %-" eask--length-url "s  %-" eask--length-priority "s")
-             name url (or priority 0))))
-(defun eask--print-archive-alist (alist)
-  "Print the archvie ALIST."
-  (let* ((names (mapcar #'car alist))
-         (eask--length-name (eask-2str (eask-seq-str-max names)))
-         (urls (mapcar #'cdr alist))
-         (eask--length-url (eask-2str (eask-seq-str-max urls)))
-         (priorities (mapcar #'cdr package-archive-priorities))
-         (eask--length-priority (eask-2str (eask-seq-str-max priorities))))
-    (mapc #'eask--print-archive alist)))
-
-;; ~/lisp/core/cat.el
-
-;; ~/lisp/core/compile.el
-(defconst eask-compile-log-buffer-name "*Compile-Log*"
-  "Byte-compile log buffer name.")
-(defun eask--print-compile-log ()
-  "Print `*Compile-Log*' buffer."
-  (when (get-buffer eask-compile-log-buffer-name)
-    (with-current-buffer eask-compile-log-buffer-name
-      (eask-print-log-buffer)
-      (eask-msg ""))))
-(defun eask--byte-compile-file (filename)
-  "Byte compile FILENAME."
-  ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
-  ;; next byte-compile task.
-  (ignore-errors (kill-buffer eask-compile-log-buffer-name))
-  (let* ((filename (expand-file-name filename))
-         (result))
-    (eask-with-progress
-      (unless byte-compile-verbose (format "Compiling %s... " filename))
-      (eask-with-verbosity 'debug
-        (setq result (byte-compile-file filename)
-              result (eq result t)))
-      (if result "done ✓" "skipped ✗"))
-    (eask--print-compile-log)
-    result))
-(defun eask--compile-files (files)
-  "Compile sequence of FILES."
-  (let* ((compiled (cl-remove-if-not #'eask--byte-compile-file files))
-         (compiled (length compiled))
-         (skipped (- (length files) compiled)))
-    ;; XXX: Avoid last newline from the log buffer!
-    (unless (get-buffer eask-compile-log-buffer-name)
-      (eask-msg ""))
-    (eask-info "(Total of %s file%s compiled, %s skipped)" compiled
-               (eask--sinr compiled "" "s")
-               skipped)))
-
-;; ~/lisp/core/concat.el
-
-;; ~/lisp/core/emacs.el
-
-;; ~/lisp/core/eval.el
-
-;; ~/lisp/core/exec-path.el
-(defun eask--print-exec-path (path)
-  "Print out the PATH."
-  (message "%s" path))
-
-;; ~/lisp/core/exec.el
-(defconst eask--exec-path-file (expand-file-name "exec-path" eask-homedir)
-  "Target file to export the `exec-path' variable.")
-(defconst eask--load-path-file (expand-file-name "load-path" eask-homedir)
-  "Target file to export the `load-path' variable.")
-(defun eask--export-env ()
-  "Export environments."
-  (ignore-errors (delete-file eask--exec-path-file))
-  (ignore-errors (delete-file eask--load-path-file))
-  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
-  (write-region (getenv "PATH") nil eask--exec-path-file)
-  (write-region (getenv "EMACSLOADPATH") nil eask--load-path-file))
-
-;; ~/lisp/core/files.el
-(defun eask--print-filename (filename)
-  "Print out the FILENAME."
-  (message "%s" filename))
-
-;; ~/lisp/core/info.el
-(defvar eask--max-offset 0)
-(defun eask--print-deps (title dependencies)
-  "Print dependencies."
-  (when dependencies
-    (eask-msg "")
-    (eask-msg title)
-    (let* ((names (mapcar #'car dependencies))
-           (offset (eask-seq-str-max names)))
-      (setq eask--max-offset (max offset eask--max-offset)
-            offset (eask-2str eask--max-offset))
-      (dolist (dep dependencies)
-        (let* ((target-version (cdr dep))
-               (target-version (if (= (length target-version) 1)
-                                   (nth 0 target-version)
-                                 "specified")))
-          (eask-msg (concat "  %-" offset "s (%s)") (car dep) target-version)
-          (eask-debug "    Recipe: %s" (car dep)))))))
-
-;; ~/lisp/core/install-deps.el
-
-;; ~/lisp/core/install.el
-(defun eask--install-packages (names)
-  "Install packages."
-  (let* ((names (mapcar #'eask-intern names))
-         (len (length names)) (s (eask--sinr len "" "s"))
-         (pkg-not-installed (cl-remove-if #'package-installed-p names))
-         (installed (length pkg-not-installed)) (skipped (- len installed)))
-    (eask-log "Installing %s specified package%s..." len s)
-    (mapc #'eask-package-install names)
-    (eask-msg "")
-    (eask-info "(Total of %s package%s installed, %s skipped)"
-               installed s skipped)))
-(defun eask--package-install-file (file)
-  ;; Workaround: `package-install-file' fails when FILE is .el and contains CRLF EOLs:
-  ;; https://debbugs.gnu.org/cgi/bugreport.cgi?bug=48137
-  (if (not (string-match "\\.el\\'" file))
-      (package-install-file file)
-
-    ;; load package file and check if it contains CRLFs
-    (with-temp-buffer
-      (insert-file-contents-literally file)
-      (goto-char (point-min))
-      (if (not (search-forward "\r\n" nil t))
-          (package-install-file file) ;; no cllf
-
-        ;; CRLF found
-        (let* ((nondir (file-name-nondirectory file))
-               (temp-dir (make-temp-file "eask" t))
-               (temp-file (expand-file-name nondir temp-dir)))
-
-          (unwind-protect
-              ;; replace CRLFs with LFs and write to new temporary
-              ;; package file
-              (progn
-                (replace-match "\n" nil t)
-                (while (search-forward "\r\n" nil t)
-                  (replace-match "\n" nil t))
-                (write-region (point-min) (point-max) temp-file)
-
-                (package-install-file temp-file))
-
-            ;; clean up temporary file
-            (delete-directory temp-dir t)))))))
-
-;; ~/lisp/core/keywords.el
-
-;; ~/lisp/core/list.el
-(defvar eask--list-pkg-name-offset nil)
-(defvar eask--list-pkg-version-offset nil)
-(defvar eask--list-pkg-archive-offset nil)
-(defun eask--format-s (offset)
-  "Format OFFSET."
-  (concat " %-" (number-to-string offset) "s "))
-(defun eask--align (depth &optional rest)
-  "Format string to align starting from the version number."
-  (let ((prefix (if (= depth 0) "[+]" "[+]")))
-    (concat (spaces-string (* depth 2))  ; indent for depth
-            " " prefix
-            (eask--format-s (- eask--list-pkg-name-offset (* depth 2)))
-            (eask--format-s eask--list-pkg-version-offset)
-            (eask--format-s eask--list-pkg-archive-offset)
-            rest)))
-(defun eask-print-pkg (name depth max-depth pkg-alist)
-  "Print NAME package information."
-  (when-let*
-      ((pkg (assq name pkg-alist))
-       (desc (cadr pkg))
-       (name (package-desc-name desc))
-       (version (package-desc-version desc))
-       (version (package-version-join version))
-       (archive (or (package-desc-archive desc) ""))
-       (summary (package-desc-summary desc)))
-    (if (= depth 0)
-        (eask-msg (eask--align depth " %-80s") name version archive summary)
-      (eask-msg (eask--align depth) name "" "" ""))
-    (when-let ((reqs (package-desc-reqs desc))
-               ((< depth max-depth)))
-      (dolist (req reqs)
-        (eask-print-pkg (car req) (1+ depth) max-depth pkg-alist)))))
-(defun eask--version-list (pkg-alist)
-  "Return list of versions."
-  (mapcar (lambda (elm)
-            (package-version-join (package-desc-version (cadr elm))))
-          pkg-alist))
-(defun eask--archive-list (pkg-alist)
-  "Return list of archives."
-  (mapcar (lambda (elm)
-            (or (package-desc-archive (cadr elm)) ""))
-          pkg-alist))
-(defun eask--list (list pkg-alist &optional depth)
-  "List packages."
-  (let* ((eask--list-pkg-name-offset (eask-seq-str-max list))
-         (version-list (eask--version-list pkg-alist))
-         (eask--list-pkg-version-offset (eask-seq-str-max version-list))
-         (archive-list (eask--archive-list pkg-alist))
-         (eask--list-pkg-archive-offset (eask-seq-str-max archive-list)))
-    (dolist (name list)
-      (eask-print-pkg name 0 (or depth (eask-depth) 999) pkg-alist))))
-
-;; ~/lisp/core/load-path.el
-(defun eask--print-load-path (path)
-  "Print out the PATH."
-  (message "%s" path))
-(defun eask--filter-path (path)
-  "Filter the PATH out by search regex."
-  (cl-some (lambda (regex)
-             (string-match-p regex path))
-           (eask-args)))
-
-;; ~/lisp/core/load.el
-
-;; ~/lisp/core/outdated.el
-
-;; ~/lisp/core/package-directory.el
-
-;; ~/lisp/core/package.el
-(defun eask-package-dir--patterns ()
-  "Return patterns for directory recipe."
-  (if eask-files
-      (if (member eask-package-file (eask-expand-file-specs (eask-files-spec)))
-          ;; Else we return default
-          eask-files
-        ;; If files DSL doesn't contain package main file, we added manually!
-        ;;
-        ;; This would avoid error, single file doesn't match package name.
-        (append eask-files (list eask-package-file)))
-    package-build-default-files-spec))
-(defun eask-package-dir-recipe (version)
-  "Form a directory recipe."
-  (eask-load "extern/package-recipe")
-  (let* ((name (eask-guess-package-name))
-         (patterns (eask-package-dir--patterns))
-         (path default-directory)
-         (rcp (package-directory-recipe name :name name :files patterns :dir path)))
-    (setf (slot-value rcp 'version) version)
-    (setf (slot-value rcp 'time) (eask-current-time))
-    rcp))
-(defun eask-packaged-name ()
-  "Find a possible packaged name."
-  (let ((name (eask-guess-package-name))
-        (version (eask-package-version)))
-    (concat name "-" version)))
-(defun eask--packaged-file (ext)
-  "Find a possible packaged file."
-  (expand-file-name (concat (eask-packaged-name) "." ext) eask-dist-path))
-(defun eask-packaged-file ()
-  "Return generated package artifact; it could be a tar or el."
-  (if (eask-package-multi-p) (eask--packaged-file "tar")
-    (eask--packaged-file "el")))
-
-;; ~/lisp/core/recipe.el
-
-;; ~/lisp/core/refresh.el
-
-;; ~/lisp/core/reinstall.el
-(defun eask--reinstall-packages (names)
-  "Install packages."
-  (let* ((names (mapcar #'eask-intern names))
-         (len (length names)) (s (eask--sinr len "" "s"))
-         (pkg-not-installed (cl-remove-if #'package-installed-p names))
-         (installed (length pkg-not-installed)) (skipped (- len installed)))
-    (eask-log "Reinstalling %s specified package%s..." len s)
-    (mapc #'eask-package-reinstall names)
-    (eask-info "(Total of %s package%s reinstalled, %s skipped)"
-               installed s skipped)))
-
-;; ~/lisp/core/run.el
-(defconst eask--run-file (expand-file-name "run" eask-homedir)
-  "Target file to export the `run' scripts.")
-(defun eask--print-scripts ()
-  "Print all available scripts."
-  (eask-msg "available via `eask run-script`")
-  (eask-msg "")
-  (let* ((keys (mapcar #'car (reverse eask-scripts)))
-         (offset (eask-seq-str-max keys))
-         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
-    (dolist (key keys)
-      (eask-msg fmt key (cdr (assoc key eask-scripts))))
-    (eask-msg "")
-    (eask-info "(Total of %s available script%s)" (length keys)
-               (eask--sinr keys "" "s"))))
-(defun eask--export-command (command)
-  "Export COMMAND instruction."
-  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
-  (write-region (concat command "\n") nil eask--run-file t))
-(defun eask--unmatched-scripts (scripts)
-  "Return a list of scripts that cannot be found in `eask-scripts'."
-  (let (unmatched)
-    (dolist (script scripts)
-      (unless (assoc script eask-scripts)
-        (push script unmatched)))
-    unmatched))
-
-;; ~/lisp/core/search.el
-(defun eask--search-packages (query)
-  "Filter available packages with QUERY."
-  (let ((result))
-    (dolist (package (mapcar #'car package-archive-contents))
-      (when (string-match-p query (eask-2str package))
-        (push package result)))
-    result))
-
-;; ~/lisp/core/uninstall.el
-(defun eask--uninstall-packages(names)
-  "Uninstall packages."
-  (let* ((names (mapcar #'eask-intern names))
-         (len (length names)) (s (eask--sinr len "" "s"))
-         (pkg-installed (cl-remove-if-not #'package-installed-p names))
-         (deleted (length pkg-installed)) (skipped (- len deleted)))
-    (eask-log "Uninstalling %s specified package%s..." len s)
-    (mapc #'eask-package-delete names)
-    (eask-msg "")
-    (eask-info "(Total of %s package%s deleted, %s skipped)"
-               deleted s skipped)))
-
-;; ~/lisp/core/upgrade.el
-(defun eask--package-version-string (pkg-desc)
-  "Get package version string with color."
-  (let ((version (package-desc-version pkg-desc)))
-    (ansi-yellow (package-version-join version))))
-(defun eask-package-upgrade (pkg-desc)
-  "Upgrade package using PKG-DESC."
-  (let* ((name (package-desc-name pkg-desc))
-         (pkg-string (ansi-green name))
-         (version-new (eask--package-version-string pkg-desc))
-         (old-pkg-desc (eask-package-desc name t))
-         (version-old (eask--package-version-string old-pkg-desc)))
-    (eask-with-progress
-      (format "  - Upgrading %s (%s) -> (%s)..." pkg-string version-old version-new)
-      (eask-with-verbosity 'debug
-        (when (eask-force-p) (package-delete old-pkg-desc))
-        (package-install pkg-desc)
-        (unless (eask-force-p) (package-delete old-pkg-desc)))
-      "done ✓")))
-(defun eask-package--upgradable-p (pkg)
-  "Return non-nil if PKG can be upgraded."
-  (let ((current (eask-package--version pkg t))
-        (latest (eask-package--version pkg nil)))
-    (version-list-< current latest)))
-(defun eask-package--upgrades ()
-  "Return a list of upgradable package description."
-  (let (upgrades)
-    (eask-with-progress
-      (ansi-green "Collecting information for upgradable packages...")
-      (dolist (pkg (mapcar #'car package-alist))
-        (when (eask-package--upgradable-p pkg)
-          (push (cadr (assq pkg package-archive-contents)) upgrades)))
-      (ansi-green "done ✓"))
-    upgrades))
-(defun eask-package-upgrade-all ()
-  "Upgrade for archive packages."
-  (if-let ((upgrades (eask-package--upgrades)))
-      (progn
-        (mapcar #'eask-package-upgrade upgrades)
-        (eask-msg "")
-        (eask-info "(Done upgrading all packages)"))
-    (eask-msg "")
-    (eask-info "(All packages are up to date)")))
-
-;; ~/lisp/create/elpa.el
-(defconst eask--template-elpa-name "template-elpa"
-  "Holds template project name.")
-
-;; ~/lisp/create/package.el
-(defconst eask--template-project-name "template-elisp"
-  "Holds template project name.")
-(defun eask--replace-string-in-buffer (old new)
-  "Replace OLD to NEW in buffer."
-  (let ((str (buffer-string)))
-    (setq str (eask-s-replace old new str))
-    (delete-region (point-min) (point-max))
-    (insert str)))
-(defun eask--get-user ()
-  "Return user name."
-  (string-trim (shell-command-to-string "git config user.name")))
-(defun eask--get-mail ()
-  "Return user email."
-  (string-trim (shell-command-to-string "git config user.email")))
-
-;; ~/lisp/generate/workflow/circle-ci.el
-(defun eask--circle-ci-insert-jobs (version)
-  "Insert Circle CI's jobs instruction for specific Emacs' VERSION."
-  (insert "  test-ubuntu-emacs-" version ":" "\n")
-  (insert "    docker:" "\n")
-  (insert "      - image: silex/emacs:" version "-ci" "\n")
-  (insert "        entrypoint: bash" "\n")
-  (insert "    steps:" "\n")
-  (insert "      - setup" "\n")
-  (insert "      - test" "\n"))
-
-;; ~/lisp/generate/workflow/github.el
-
-;; ~/lisp/generate/workflow/gitlab.el
-(defun eask--gitlab-insert-jobs (version)
-  "Insert GitLab Runner's jobs instruction for specific Emacs' VERSION."
-  (insert "test-" version ":" "\n")
-  (insert "  image: silex/emacs:" version "-ci" "\n")
-  (insert "  script:" "\n")
-  (insert "    - eask clean all" "\n")
-  (insert "    - eask package" "\n")
-  (insert "    - eask install" "\n")
-  (insert "    - eask compile" "\n")
-  (insert "\n"))
-
-;; ~/lisp/generate/workflow/travis-ci.el
-
-;; ~/lisp/generate/autoloads.el
-
-;; ~/lisp/generate/license.el
-(defun eask--print-license-menu ()
-  "Print all available license."
-  (eask-msg "available via `eask generate license`")
-  (eask-msg "")
-  (let* ((names (license-templates-keys))
-         (offset (eask-seq-str-max names))
-         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
-    (dolist (data license-templates--data)
-      (eask-msg fmt (plist-get data :key) (plist-get data :name)))
-    (eask-msg "")
-    (eask-info "(Total of %s available license%s)" (length names)
-               (eask--sinr names "" "s"))))
-
-;; ~/lisp/generate/pkg-file.el
-(defvar eask--pkg-filename)
-(defun eask--generate-from-pkg-desc ()
-  "Generate pkg-file from a package-descriptor."
-  (let* ((name (package-desc-name eask-package-desc))
-         (pkg-file (expand-file-name (format "%s-pkg.el" name))))
-    (setq eask--pkg-filename pkg-file)
-    (package-generate-description-file eask-package-desc pkg-file)))
-(defun eask--generate-from-eask-file ()
-  "Generate pkg-file from Eask file."
-  (let* ((name (eask-guess-package-name))
-         (pkg-file (expand-file-name (concat name "-pkg.el")))
-         (version (eask-package-version))
-         (description (eask-package-description))
-         (reqs (mapcar (lambda (elm)
-                         (list (if (stringp (car elm)) (intern (car elm)) (car elm))
-                               (if (= (length (cdr elm)) 1)
-                                   (nth 0 (cdr elm))
-                                 "0")))
-                       (append eask-depends-on-emacs eask-depends-on))))
-    (setq eask--pkg-filename pkg-file)
-    (write-region
-     (pp-to-string `(define-package ,name ,version ,description ',reqs))
-     nil pkg-file)))
-
-;; ~/lisp/init/cask.el
-(defun eask--convert-cask (filename)
-  "Convert Cask FILENAME to Eask."
-  (let* ((filename (expand-file-name filename))
-         (file (file-name-nondirectory (eask-root-del filename)))
-         (new-file (eask-s-replace "Cask" "Eask" file))
-         (new-filename (expand-file-name new-file))
-         (converted))
-    (eask-with-progress
-      (format "Converting file `%s` to `%s`... " file new-file)
-      (eask-with-verbosity 'debug
-        (cond ((not (string-prefix-p "Cask" file))
-               (eask-debug "✗ Invalid Cask filename, the file should start with `Cask`"))
-              ((file-exists-p new-filename)
-               (eask-debug "✗ The file `%s` already presented" new-file))
-              (t
-               (with-current-buffer (find-file new-filename)
-                 (insert-file-contents file)
-                 (goto-char (point-min))
-                 (while (re-search-forward "(source " nil t)
-                   (forward-word 1)
-                   (forward-word -1)  ; make sure infront of the word
-                   (insert "'"))      ; make it symbol
-                 (save-buffer))
-               (setq converted t))))
-      (if converted "done ✓" "skipped ✗"))
-    converted))
-
-;; ~/lisp/link/add.el
-(defun eask--package-desc-reqs (desc)
-  "Return a list of requirements from package DESC."
-  (cl-remove-if (lambda (name) (string= name "emacs"))
-                (mapcar #'car (package-desc-reqs desc))))
-(defvar eask--link-package-name    nil "Used to form package name.")
-(defvar eask--link-package-version nil "Used to form package name.")
-(defun eask--create-link (name source)
-  "Add link with NAME to PATH."
-  (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
-         (link-path (expand-file-name dir-name package-user-dir)))
-    (when (file-exists-p link-path)
-      (eask-msg "")
-      (eask-with-progress
-        (ansi-yellow "!! The link is already presented; override the existing link... ")
-        (eask--delete-symlink link-path)
-        (ansi-yellow "done !!")))
-    (make-symbolic-link source link-path)
-    (eask-msg "")
-    (eask-info "(Created link from `%s` to `%s`)" source (eask-f-filename link-path))))
-
-;; ~/lisp/link/delete.el
-(defun eask--delete-symlink (path)
-  "Delete symlink PATH."
-  (ignore-errors (delete-file path))
-  (ignore-errors (delete-directory path t)))
-(defun eask--delete-link (name)
-  "Delete a link by its' NAME."
-  (let* ((links (eask--links))
-         (source (assoc name links))
-         (link (expand-file-name name package-user-dir)))
-    (if (and source (file-symlink-p link))
-        (progn
-          (eask--delete-symlink link)
-          (eask-info "✓ Package `%s` unlinked" name)
-          t)
-      (eask-info "✗ No linked package name `%s`" name)
-      nil)))
-
-;; ~/lisp/link/list.el
-(defun eask--links ()
-  "Return a list of all links."
-  (mapcar
-   (lambda (file)
-     (cons (eask-f-filename file) (file-truename file)))
-   (cl-remove-if-not #'file-symlink-p (directory-files package-user-dir t))))
-(defun eask--print-link (link offset)
-  "Print information regarding the LINK.
-
-The argument OFFSET is used to align the result."
-  (message (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
-
-;; ~/lisp/lint/checkdoc.el
-(defvar eask--checkdoc-errors nil "Error flag.")
-(defun eask--checkdoc-print-error (text start end &optional unfixable)
-  "Print error for checkdoc."
-  (setq eask--checkdoc-errors t)
-  (let ((msg (concat (checkdoc-buffer-label) ":"
-                     (int-to-string (count-lines (point-min) (or start (point-min))))
-                     ": " text)))
-    (if (eask-strict-p) (error msg) (warn msg))
-    ;; Return nil because we *are* generating a buffered list of errors.
-    nil))
-(defun eask--checkdoc-file (filename)
-  "Run checkdoc on FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
-         (eask--checkdoc-errors))
-    (eask-msg "")
-    (eask-msg "`%s` with checkdoc (%s)" (ansi-green file) checkdoc-version)
-    (checkdoc-file filename)
-    (unless eask--checkdoc-errors (eask-msg "No issues found"))))
-
-;; ~/lisp/lint/declare.el
-(defun eask--check-declare-file (filename)
-  "Run check-declare on FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
-         (errors))
-    (eask-msg "")
-    (eask-msg "`%s` with check-declare" (ansi-green file))
-    (setq errors (check-declare-file filename))
-    (if errors
-        (with-current-buffer check-declare-warning-buffer
-          (eask-msg (buffer-string)))
-      (eask-msg "No issues found"))))
-
-;; ~/lisp/lint/elint.el
-(defun eask--elint-file (filename)
-  "Run elint on FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
-         (noninteractive))
-    (eask-msg "")
-    (eask-msg "`%s` with elint" (ansi-green file))
-    (eask-with-verbosity 'debug (elint-file filename))
-    (eask-print-log-buffer (elint-get-log-buffer))
-    (kill-buffer (elint-get-log-buffer))))
-
-;; ~/lisp/lint/elisp-lint.el
-(defconst eask--elisp-lint-version nil
-  "`elisp-lint' version.")
-(defun eask--elisp-lint-process-file (filename)
-  "Process FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
-         success)
-    (eask-msg "")
-    (eask-msg "`%s` with elisp-lint (%s)" (ansi-green file) eask--elisp-lint-version)
-    (eask-with-verbosity 'debug
-      (setq success (elisp-lint-file filename)))
-    ;; Report result!
-    (cond (success
-           (eask-msg "No issues found"))
-          ((eask-strict-p)
-           (eask-error "Linting failed")))))
-
-;; ~/lisp/lint/elsa.el
-(defconst eask--elsa-version nil
-  "Elsa version.")
-(defun eask--elsa-analyse-file (filename)
-  "Process FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
-         errors)
-    (eask-msg "")
-    (eask-msg "`%s` with elsa (%s)" (ansi-green file) eask--elsa-version)
-    (eask-with-verbosity 'debug
-      (setq errors (oref (elsa-analyse-file filename elsa-global-state) errors)))
-    (if errors
-        (--each (reverse errors)
-          (let ((line (string-trim (concat file ":" (elsa-message-format it)))))
-            (cond ((string-match-p "[: ][Ee]rror:" line) (eask-error line))
-                  ((string-match-p "[: ][Ww]arning:" line) (eask-warn line))
-                  (t (eask-log line)))))
-      (eask-msg "No issues found"))))
-
-;; ~/lisp/lint/indent.el
-(defun eask--undo-lines (undo-list)
-  "Return list of lines changed in UNDO-LIST."
-  (let ((lines))
-    (dolist (elm undo-list)
-      (when (and (consp elm) (numberp (cdr elm)))
-        (push (line-number-at-pos (abs (cdr elm))) lines)))
-    (reverse lines)))
-(defun eask--indent-lint-file (file)
-  "Lint indent for FILE."
-  (eask-msg "")
-  (eask-msg "`%s` with indent-lint" (ansi-green (eask-root-del file)))
-  (find-file file)
-  (let ((tick (buffer-modified-tick)))
-    (eask--silent (indent-region (point-min) (point-max)))
-    (if (/= tick (buffer-modified-tick))
-        ;; Indentation changed: warn for each line.
-        (dolist (line (eask--undo-lines buffer-undo-list))
-          (eask-report "%s:%s: mismatch indentation" (buffer-name) line))
-      (eask-log "No mismatch indentation found"))))
-
-;; ~/lisp/lint/keywords.el
-(defun eask--defined-keywords (keywords)
-  "Return t if KEYWORDS are defined correctly."
-  (let ((available-keywords (mapcar #'car finder-known-keywords))
-        (result))
-    (dolist (keyword keywords)
-      (when (memq (intern keyword) available-keywords)
-        (setq result t)))
-    result))
-
-;; ~/lisp/lint/license.el
-(defun eask--string-match-all (regexps)
-  "Return t when every REGEXPS match the `buffer-string'."
-  (cl-every (lambda (regexp)
-              (string-match-p regexp (buffer-string)))
-            regexps))
-(defun eask--scan-license (file)
-  "Scan the license FILE."
-  (with-current-buffer (find-file file)
-    ;; See https://api.github.com/licenses
-    (cond
-     ((eask--string-match-all '("GNU AFFERO GENERAL PUBLIC LICENSE"
-                                "Version 3"
-                                "You should have received a copy of the GNU Affero General Public License"))
-      '("agpl-3.0" "GNU Affero General Public License v3.0" "AGPL-3.0"))
-     ((eask--string-match-all '("Apache"
-                                "http://www.apache.org/licenses/"))
-      '("apache-2.0" "Apache License 2.0" "Apache-2.0"))
-     ((eask--string-match-all '("BSD 2-Clause"))
-      '("bsd-2-clause" "BSD 2-Clause \"Simplified\" License" "BSD-2-Clause"))
-     ((eask--string-match-all '("BSD 3-Clause"))
-      '("bsd-3-clause" "BSD 3-Clause \"New\" or \"Revised\" License" "BSD-3-Clause"))
-     ((eask--string-match-all '("Boost Software License - Version 1.0"))
-      '("bsl-1.0" "Boost Software License 1.0" "BSL-1.0"))
-     ((eask--string-match-all '("CC0 1.0"))
-      '("cc0-1.0" "Creative Commons Zero v1.0 Universal" "CC0-1.0"))
-     ((eask--string-match-all '("Eclipse Public License - v 2.0"
-                                "Eclipse Foundation"))
-      '("epl-2.0" "Eclipse Public License 2.0" "EPL-2.0"))
-     ((eask--string-match-all '("GNU General Public License"
-                                "Version 2"))
-      '("gpl-2.0" "GNU General Public License v2.0" "GPL-2.0"))
-     ((eask--string-match-all '("GNU General Public License"
-                                "version 3"
-                                "You should have received a copy of the GNU General Public License"))
-      '("gpl-3.0" "GNU General Public License v3.0" "GPL-3.0"))
-     ((eask--string-match-all '("Lesser GPL"
-                                "Version 2.1"))
-      '("lgpl-2.1" "GNU Lesser General Public License v2.1" "LGPL-2.1"))
-     ((eask--string-match-all '("Permission is hereby granted, free of charge, to any person obtaining a copy"))
-      '("mit" "MIT License" "MIT"))
-     ((eask--string-match-all '("Mozilla Public License Version 2.0"
-                                "http://mozilla.org/MPL/2.0/"))
-      '("mpl-2.0" "Mozilla Public License 2.0" "MPL-2.0"))
-     ((eask--string-match-all '("This is free and unencumbered software released into the public domain"
-                                "https://unlicense.org"))
-      '("unlicense" "The Unlicense" "Unlicense"))
-     (t
-      '("unknown" "Unknown license" "unknown")))))
-(defun eask--print-scanned-license (scanned)
-  "Print all SCANNED license."
-  (eask-msg "available via `eask lint license`")
-  (eask-msg "")
-  (let* ((names (mapcar #'car scanned))
-         (offset (eask-seq-str-max names))
-         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
-    (dolist (data scanned)
-      (eask-msg fmt (nth 0 data) (nth 3 data)))
-    (eask-msg "")
-    (eask-info "(Total of %s scanned license%s)" (length names)
-               (eask--sinr names "" "s"))))
-
-;; ~/lisp/lint/package.el
-(defconst eask--package-lint-version nil
-  "`package-lint' version.")
-(defun eask--package-lint-file (filename)
-  "Package lint FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename)))
-    (eask-msg "")
-    (eask-msg "`%s` with package-lint (%s)" (ansi-green file) eask--package-lint-version)
-    (with-current-buffer (find-file filename)
-      (package-lint-current-buffer)
-      (kill-this-buffer)))
-  (eask-print-log-buffer "*Package-Lint*"))
-
-;; ~/lisp/lint/regexps.el
-(defconst eask--relint-version nil
-  "`relint' version.")
-(defun eask--relint-file (filename)
-  "Package lint FILENAME."
-  (let* ((filename (expand-file-name filename))
-         (file (eask-root-del filename))
-         (errors))
-    (eask-msg "")
-    (eask-msg "`%s` with relint (%s)" (ansi-green file) eask--relint-version)
-    (with-current-buffer (find-file filename)
-      (setq errors (relint-buffer (current-buffer)))
-      (dolist (err errors)
-        (let* ((msg       (nth 0 err))
-               (error-pos (nth 2 err))
-               (severity  (nth 5 err))
-               (report-func (pcase severity
-                              (`error #'eask-error)
-                              (`warning #'eask-warn))))
-          (funcall report-func "%s:%s %s: %s"
-                   file (line-number-at-pos error-pos)
-                   (capitalize (eask-2str severity)) msg)))
-      (unless errors
-        (eask-msg "No issues found"))
-      (kill-this-buffer))))
-
-;; ~/lisp/test/activate.el
-
-;; ~/lisp/test/buttercup.el
-
-;; ~/lisp/test/ert-runner.el
-
-;; ~/lisp/test/ert.el
-(defvar ert--message-loop nil
-  "Prevent inifinite recursive message function.")
-(defun eask--ert-message (func &rest args)
-  "Colorized ert messages."
-  (if ert--message-loop (apply func args)
-    (let ((ert--message-loop t))
-      (cond
-       ((string-match-p "^[ ]+FAILED " (apply #'format args))
-        (eask-msg (ansi-red (apply #'format args))))
-       ((string-match-p "^[ ]+SKIPPED " (apply #'format args))
-        (eask-msg (ansi-white (apply #'format args))))
-       ((string-match-p "^[ ]+passed " (apply #'format args))
-        (eask-msg (ansi-green (apply #'format args))))
-       (t (apply func args))))))
-
 ;; ~/lisp/_prepare.el
 (defconst eask-is-windows (memq system-type '(cygwin windows-nt ms-dos))   "Windows")
 (defconst eask-is-mac     (eq system-type 'darwin)                         "macOS")
@@ -2165,6 +1220,951 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 (defcustom eask-dist-path "dist"
   "Name of default target directory for building packages."
   :type 'string)
+
+;; ~/lisp/checker/check-eask.el
+(defvar eask--checker-log nil)
+(defvar eask--checker-warnings nil)
+(defvar eask--checker-errors nil)
+(defun eask--pretty-json (json)
+  "Return pretty JSON."
+  (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
+(defun eask--column-at-point (point)
+  "Get column at POINT."
+  (save-excursion (goto-char point) (current-column)))
+(defun eask--load-buffer ()
+  "Return the current file loading session."
+  (car (cl-remove-if-not
+        (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
+(defun eask--write-json-format (level msg)
+  "Prepare log for JSON format."
+  (let* ((thing (thing-at-point 'sexp))
+         (bounds (bounds-of-thing-at-point 'sexp))
+         (filename (or load-file-name eask-file))
+         (start (car bounds))
+         (end (cdr bounds))
+         (start-line (if load-file-name (line-number-at-pos start) 0))
+         (start-col  (if load-file-name (eask--column-at-point start) 0))
+         (start-pos  (if load-file-name start 0))
+         (end-line   (if load-file-name (line-number-at-pos end) 0))
+         (end-col    (if load-file-name (eask--column-at-point end) 0))
+         (end-pos    (if load-file-name end 0))
+         (msg (ansi-color-filter-apply msg)))
+    (push `((range . ((start . ((line . ,start-line)
+                                (col  . ,start-col)
+                                (pos  . ,start-pos)))
+                      (end . ((line . ,end-line)
+                              (col  . ,end-col)
+                              (pos  . ,end-pos)))))
+            (filename . ,filename)
+            (message . ,msg))
+          (cl-case level
+            (`error eask--checker-errors)
+            (`warn  eask--checker-warnings)))))
+(defun eask--write-plain-text (level msg)
+  "Prepare log for plain text format."
+  (let* ((level-string (cl-case level
+                         (`error "Error")
+                         (`warn  "Warning")))
+         (log (format "%s:%s:%s %s: %s"
+                      (or load-file-name eask-file)
+                      (if load-file-name (line-number-at-pos) 0)
+                      (if load-file-name (current-column) 0)
+                      level-string
+                      msg)))
+    (push (ansi-color-filter-apply log) eask--checker-log)))
+(defun eask--write-log (level msg)
+  "Write the log."
+  (unless (string= " *temp*" (buffer-name))  ; avoid error from `package-file' directive
+    (with-current-buffer (or (eask--load-buffer) (buffer-name))
+      (funcall
+       (cond ((eask-json-p) #'eask--write-json-format)
+             (t             #'eask--write-plain-text))
+       level msg))))
+(defun eask--check-file (files)
+  "Lint list of Eask FILES."
+  (let (checked-files content)
+    ;; Linting
+    (dolist (file files)
+      (eask--save-load-eask-file file
+          (push file checked-files)))
+
+    ;; Print result
+    (eask-msg "")
+    (cond ((and (eask-json-p)  ; JSON format
+                (or eask--checker-warnings eask--checker-errors))
+           (setq content
+                 (eask--pretty-json (json-encode
+                                     `((warnings . ,eask--checker-warnings)
+                                       (errors   . ,eask--checker-errors)))))
+           (eask-msg content))
+          (eask--checker-log  ; Plain text
+           (setq content
+                 (with-temp-buffer
+                   (dolist (msg (reverse eask--checker-log))
+                     (insert msg "\n"))
+                   (buffer-string)))
+           (mapc #'eask-msg (reverse eask--checker-log)))
+          (t
+           (eask-info "(Checked %s file%s)"
+                      (length checked-files)
+                      (eask--sinr checked-files "" "s"))))
+
+    ;; Output file
+    (when (and content (eask-output))
+      (write-region content nil (eask-output)))))
+
+;; ~/lisp/clean/all.el
+(defvar eask-no-cleaning-operation-p nil
+  "Set to non-nil if there is no cleaning operation done.")
+(defvar eask--clean-tasks-total 0
+  "Total clean tasks.")
+(defvar eask--clean-tasks-cleaned 0
+  "Total cleaned tasks")
+(defmacro eask--clean-section (title &rest body)
+  "Print clean up TITLE and execute BODY."
+  (declare (indent 1))
+  `(let (eask-no-cleaning-operation-p)
+     (eask-with-progress
+       (format "%s... " ,title)
+       (eask-with-verbosity 'debug ,@body)
+       (progn
+         (cl-incf eask--clean-tasks-total)
+         (if eask-no-cleaning-operation-p
+             "skipped ✗"
+           (cl-incf eask--clean-tasks-cleaned)
+           "done ✓")))))
+
+;; ~/lisp/clean/autoloads.el
+
+;; ~/lisp/clean/dist.el
+(defun eask--clean-dist (path)
+  "Clean up dist PATH."
+  (let* ((name (eask-guess-package-name))
+         (version (eask-package-version))
+         (readme (expand-file-name (format "%s-readme.txt" name) path))
+         (entry (expand-file-name (format "%s-%s.entry" name version) path))
+         (packaged (eask-packaged-file))
+         (deleted 0)
+         (delete-dir))
+    (when (eask-delete-file readme)   (cl-incf deleted))
+    (when (eask-delete-file entry)    (cl-incf deleted))
+    (when (eask-delete-file packaged) (cl-incf deleted))
+    (when (and (not (zerop deleted)) (directory-empty-p path))
+      (eask-with-progress
+        (format "The dist folder %s seems to be empty, delete it as well... " path)
+        (ignore-errors (delete-directory path))
+        "done ✓")
+      (setq delete-dir t))
+    (eask-msg "")
+    (eask-info "(Total of %s file%s, and %s directory deleted)" deleted
+               (eask--sinr deleted "" "s")
+               (if delete-dir "1" "0"))))
+
+;; ~/lisp/clean/elc.el
+
+;; ~/lisp/clean/log-file.el
+(defun eask--clean-log (path)
+  "Clean up .log PATH."
+  (let ((log-files '("messages.log"
+                     "warnings.log"
+                     "backtrace.log"
+                     "compile-log.log"))
+        (deleted 0)
+        (delete-dir))
+    (dolist (log-file log-files)
+      (when (eask-delete-file (expand-file-name log-file path))
+        (cl-incf deleted)))
+    (when (and (not (zerop deleted)) (directory-empty-p path))
+      (eask-with-progress
+        (format "The dist folder %s seems to be empty, delete it as well... " path)
+        (ignore-errors (delete-directory path))
+        "done ✓")
+      (setq delete-dir t))
+    (eask-msg "")
+    (eask-info "(Total of %s log file%s deleted, %s skipped)" deleted
+               (eask--sinr deleted "" "s")
+               (- (length log-files) deleted))))
+
+;; ~/lisp/clean/pkg-file.el
+
+;; ~/lisp/clean/workspace.el
+
+;; ~/lisp/core/archives.el
+(defvar eask--length-name)
+(defvar eask--length-url)
+(defvar eask--length-priority)
+(defun eask--print-archive (archive)
+  "Print the archive."
+  (let* ((name (car archive))
+         (url (cdr archive))
+         (priority (assoc name package-archive-priorities))
+         (priority (cdr priority)))
+    (message (concat "  %-" eask--length-name "s  %-" eask--length-url "s  %-" eask--length-priority "s")
+             name url (or priority 0))))
+(defun eask--print-archive-alist (alist)
+  "Print the archvie ALIST."
+  (let* ((names (mapcar #'car alist))
+         (eask--length-name (eask-2str (eask-seq-str-max names)))
+         (urls (mapcar #'cdr alist))
+         (eask--length-url (eask-2str (eask-seq-str-max urls)))
+         (priorities (mapcar #'cdr package-archive-priorities))
+         (eask--length-priority (eask-2str (eask-seq-str-max priorities))))
+    (mapc #'eask--print-archive alist)))
+
+;; ~/lisp/core/cat.el
+
+;; ~/lisp/core/compile.el
+(defconst eask-compile-log-buffer-name "*Compile-Log*"
+  "Byte-compile log buffer name.")
+(defun eask--print-compile-log ()
+  "Print `*Compile-Log*' buffer."
+  (when (get-buffer eask-compile-log-buffer-name)
+    (with-current-buffer eask-compile-log-buffer-name
+      (eask-print-log-buffer)
+      (eask-msg ""))))
+(defun eask--byte-compile-file (filename)
+  "Byte compile FILENAME."
+  ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
+  ;; next byte-compile task.
+  (ignore-errors (kill-buffer eask-compile-log-buffer-name))
+  (let* ((filename (expand-file-name filename))
+         (result))
+    (eask-with-progress
+      (unless byte-compile-verbose (format "Compiling %s... " filename))
+      (eask-with-verbosity 'debug
+        (setq result (byte-compile-file filename)
+              result (eq result t)))
+      (if result "done ✓" "skipped ✗"))
+    (eask--print-compile-log)
+    result))
+(defun eask--compile-files (files)
+  "Compile sequence of FILES."
+  (let* ((compiled (cl-remove-if-not #'eask--byte-compile-file files))
+         (compiled (length compiled))
+         (skipped (- (length files) compiled)))
+    ;; XXX: Avoid last newline from the log buffer!
+    (unless (get-buffer eask-compile-log-buffer-name)
+      (eask-msg ""))
+    (eask-info "(Total of %s file%s compiled, %s skipped)" compiled
+               (eask--sinr compiled "" "s")
+               skipped)))
+
+;; ~/lisp/core/concat.el
+
+;; ~/lisp/core/emacs.el
+
+;; ~/lisp/core/eval.el
+
+;; ~/lisp/core/exec-path.el
+(defun eask--print-exec-path (path)
+  "Print out the PATH."
+  (message "%s" path))
+
+;; ~/lisp/core/exec.el
+(defconst eask--exec-path-file (expand-file-name "exec-path" eask-homedir)
+  "Target file to export the `exec-path' variable.")
+(defconst eask--load-path-file (expand-file-name "load-path" eask-homedir)
+  "Target file to export the `load-path' variable.")
+(defun eask--export-env ()
+  "Export environments."
+  (ignore-errors (delete-file eask--exec-path-file))
+  (ignore-errors (delete-file eask--load-path-file))
+  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
+  (write-region (getenv "PATH") nil eask--exec-path-file)
+  (write-region (getenv "EMACSLOADPATH") nil eask--load-path-file))
+
+;; ~/lisp/core/files.el
+(defun eask--print-filename (filename)
+  "Print out the FILENAME."
+  (message "%s" filename))
+
+;; ~/lisp/core/info.el
+(defvar eask--max-offset 0)
+(defun eask--print-deps (title dependencies)
+  "Print dependencies."
+  (when dependencies
+    (eask-msg "")
+    (eask-msg title)
+    (let* ((names (mapcar #'car dependencies))
+           (offset (eask-seq-str-max names)))
+      (setq eask--max-offset (max offset eask--max-offset)
+            offset (eask-2str eask--max-offset))
+      (dolist (dep dependencies)
+        (let* ((target-version (cdr dep))
+               (target-version (if (= (length target-version) 1)
+                                   (nth 0 target-version)
+                                 "specified")))
+          (eask-msg (concat "  %-" offset "s (%s)") (car dep) target-version)
+          (eask-debug "    Recipe: %s" (car dep)))))))
+
+;; ~/lisp/core/install-deps.el
+
+;; ~/lisp/core/install.el
+(defun eask--install-packages (names)
+  "Install packages."
+  (let* ((names (mapcar #'eask-intern names))
+         (len (length names)) (s (eask--sinr len "" "s"))
+         (pkg-not-installed (cl-remove-if #'package-installed-p names))
+         (installed (length pkg-not-installed)) (skipped (- len installed)))
+    (eask-log "Installing %s specified package%s..." len s)
+    (mapc #'eask-package-install names)
+    (eask-msg "")
+    (eask-info "(Total of %s package%s installed, %s skipped)"
+               installed s skipped)))
+(defun eask--package-install-file (file)
+  ;; Workaround: `package-install-file' fails when FILE is .el and contains CRLF EOLs:
+  ;; https://debbugs.gnu.org/cgi/bugreport.cgi?bug=48137
+  (if (not (string-match "\\.el\\'" file))
+      (package-install-file file)
+
+    ;; load package file and check if it contains CRLFs
+    (with-temp-buffer
+      (insert-file-contents-literally file)
+      (goto-char (point-min))
+      (if (not (search-forward "\r\n" nil t))
+          (package-install-file file) ;; no cllf
+
+        ;; CRLF found
+        (let* ((nondir (file-name-nondirectory file))
+               (temp-dir (make-temp-file "eask" t))
+               (temp-file (expand-file-name nondir temp-dir)))
+
+          (unwind-protect
+              ;; replace CRLFs with LFs and write to new temporary
+              ;; package file
+              (progn
+                (replace-match "\n" nil t)
+                (while (search-forward "\r\n" nil t)
+                  (replace-match "\n" nil t))
+                (write-region (point-min) (point-max) temp-file)
+
+                (package-install-file temp-file))
+
+            ;; clean up temporary file
+            (delete-directory temp-dir t)))))))
+
+;; ~/lisp/core/keywords.el
+
+;; ~/lisp/core/list.el
+(defvar eask--list-pkg-name-offset nil)
+(defvar eask--list-pkg-version-offset nil)
+(defvar eask--list-pkg-archive-offset nil)
+(defun eask--format-s (offset)
+  "Format OFFSET."
+  (concat " %-" (number-to-string offset) "s "))
+(defun eask--align (depth &optional rest)
+  "Format string to align starting from the version number."
+  (let ((prefix (if (= depth 0) "[+]" "[+]")))
+    (concat (spaces-string (* depth 2))  ; indent for depth
+            " " prefix
+            (eask--format-s (- eask--list-pkg-name-offset (* depth 2)))
+            (eask--format-s eask--list-pkg-version-offset)
+            (eask--format-s eask--list-pkg-archive-offset)
+            rest)))
+(defun eask-print-pkg (name depth max-depth pkg-alist)
+  "Print NAME package information."
+  (when-let*
+      ((pkg (assq name pkg-alist))
+       (desc (cadr pkg))
+       (name (package-desc-name desc))
+       (version (package-desc-version desc))
+       (version (package-version-join version))
+       (archive (or (package-desc-archive desc) ""))
+       (summary (package-desc-summary desc)))
+    (if (= depth 0)
+        (eask-msg (eask--align depth " %-80s") name version archive summary)
+      (eask-msg (eask--align depth) name "" "" ""))
+    (when-let ((reqs (package-desc-reqs desc))
+               ((< depth max-depth)))
+      (dolist (req reqs)
+        (eask-print-pkg (car req) (1+ depth) max-depth pkg-alist)))))
+(defun eask--version-list (pkg-alist)
+  "Return list of versions."
+  (mapcar (lambda (elm)
+            (package-version-join (package-desc-version (cadr elm))))
+          pkg-alist))
+(defun eask--archive-list (pkg-alist)
+  "Return list of archives."
+  (mapcar (lambda (elm)
+            (or (package-desc-archive (cadr elm)) ""))
+          pkg-alist))
+(defun eask--list (list pkg-alist &optional depth)
+  "List packages."
+  (let* ((eask--list-pkg-name-offset (eask-seq-str-max list))
+         (version-list (eask--version-list pkg-alist))
+         (eask--list-pkg-version-offset (eask-seq-str-max version-list))
+         (archive-list (eask--archive-list pkg-alist))
+         (eask--list-pkg-archive-offset (eask-seq-str-max archive-list)))
+    (dolist (name list)
+      (eask-print-pkg name 0 (or depth (eask-depth) 999) pkg-alist))))
+
+;; ~/lisp/core/load-path.el
+(defun eask--print-load-path (path)
+  "Print out the PATH."
+  (message "%s" path))
+(defun eask--filter-path (path)
+  "Filter the PATH out by search regex."
+  (cl-some (lambda (regex)
+             (string-match-p regex path))
+           (eask-args)))
+
+;; ~/lisp/core/load.el
+
+;; ~/lisp/core/outdated.el
+
+;; ~/lisp/core/package-directory.el
+
+;; ~/lisp/core/package.el
+(defun eask-package-dir--patterns ()
+  "Return patterns for directory recipe."
+  (if eask-files
+      (if (member eask-package-file (eask-expand-file-specs (eask-files-spec)))
+          ;; Else we return default
+          eask-files
+        ;; If files DSL doesn't contain package main file, we added manually!
+        ;;
+        ;; This would avoid error, single file doesn't match package name.
+        (append eask-files (list eask-package-file)))
+    package-build-default-files-spec))
+(defun eask-package-dir-recipe (version)
+  "Form a directory recipe."
+  (eask-load "extern/package-recipe")
+  (let* ((name (eask-guess-package-name))
+         (patterns (eask-package-dir--patterns))
+         (path default-directory)
+         (rcp (package-directory-recipe name :name name :files patterns :dir path)))
+    (setf (slot-value rcp 'version) version)
+    (setf (slot-value rcp 'time) (eask-current-time))
+    rcp))
+(defun eask-packaged-name ()
+  "Find a possible packaged name."
+  (let ((name (eask-guess-package-name))
+        (version (eask-package-version)))
+    (concat name "-" version)))
+(defun eask--packaged-file (ext)
+  "Find a possible packaged file."
+  (expand-file-name (concat (eask-packaged-name) "." ext) eask-dist-path))
+(defun eask-packaged-file ()
+  "Return generated package artifact; it could be a tar or el."
+  (if (eask-package-multi-p) (eask--packaged-file "tar")
+    (eask--packaged-file "el")))
+
+;; ~/lisp/core/recipe.el
+
+;; ~/lisp/core/refresh.el
+
+;; ~/lisp/core/reinstall.el
+(defun eask--reinstall-packages (names)
+  "Install packages."
+  (let* ((names (mapcar #'eask-intern names))
+         (len (length names)) (s (eask--sinr len "" "s"))
+         (pkg-not-installed (cl-remove-if #'package-installed-p names))
+         (installed (length pkg-not-installed)) (skipped (- len installed)))
+    (eask-log "Reinstalling %s specified package%s..." len s)
+    (mapc #'eask-package-reinstall names)
+    (eask-info "(Total of %s package%s reinstalled, %s skipped)"
+               installed s skipped)))
+
+;; ~/lisp/core/run.el
+(defconst eask--run-file (expand-file-name "run" eask-homedir)
+  "Target file to export the `run' scripts.")
+(defun eask--print-scripts ()
+  "Print all available scripts."
+  (eask-msg "available via `eask run-script`")
+  (eask-msg "")
+  (let* ((keys (mapcar #'car (reverse eask-scripts)))
+         (offset (eask-seq-str-max keys))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (key keys)
+      (eask-msg fmt key (cdr (assoc key eask-scripts))))
+    (eask-msg "")
+    (eask-info "(Total of %s available script%s)" (length keys)
+               (eask--sinr keys "" "s"))))
+(defun eask--export-command (command)
+  "Export COMMAND instruction."
+  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
+  (write-region (concat command "\n") nil eask--run-file t))
+(defun eask--unmatched-scripts (scripts)
+  "Return a list of scripts that cannot be found in `eask-scripts'."
+  (let (unmatched)
+    (dolist (script scripts)
+      (unless (assoc script eask-scripts)
+        (push script unmatched)))
+    unmatched))
+
+;; ~/lisp/core/search.el
+(defun eask--search-packages (query)
+  "Filter available packages with QUERY."
+  (let ((result))
+    (dolist (package (mapcar #'car package-archive-contents))
+      (when (string-match-p query (eask-2str package))
+        (push package result)))
+    result))
+
+;; ~/lisp/core/uninstall.el
+(defun eask--uninstall-packages(names)
+  "Uninstall packages."
+  (let* ((names (mapcar #'eask-intern names))
+         (len (length names)) (s (eask--sinr len "" "s"))
+         (pkg-installed (cl-remove-if-not #'package-installed-p names))
+         (deleted (length pkg-installed)) (skipped (- len deleted)))
+    (eask-log "Uninstalling %s specified package%s..." len s)
+    (mapc #'eask-package-delete names)
+    (eask-msg "")
+    (eask-info "(Total of %s package%s deleted, %s skipped)"
+               deleted s skipped)))
+
+;; ~/lisp/core/upgrade.el
+(defun eask--package-version-string (pkg-desc)
+  "Get package version string with color."
+  (let ((version (package-desc-version pkg-desc)))
+    (ansi-yellow (package-version-join version))))
+(defun eask-package-upgrade (pkg-desc)
+  "Upgrade package using PKG-DESC."
+  (let* ((name (package-desc-name pkg-desc))
+         (pkg-string (ansi-green name))
+         (version-new (eask--package-version-string pkg-desc))
+         (old-pkg-desc (eask-package-desc name t))
+         (version-old (eask--package-version-string old-pkg-desc)))
+    (eask-with-progress
+      (format "  - Upgrading %s (%s) -> (%s)..." pkg-string version-old version-new)
+      (eask-with-verbosity 'debug
+        (when (eask-force-p) (package-delete old-pkg-desc))
+        (package-install pkg-desc)
+        (unless (eask-force-p) (package-delete old-pkg-desc)))
+      "done ✓")))
+(defun eask-package--upgradable-p (pkg)
+  "Return non-nil if PKG can be upgraded."
+  (let ((current (eask-package--version pkg t))
+        (latest (eask-package--version pkg nil)))
+    (version-list-< current latest)))
+(defun eask-package--upgrades ()
+  "Return a list of upgradable package description."
+  (let (upgrades)
+    (eask-with-progress
+      (ansi-green "Collecting information for upgradable packages...")
+      (dolist (pkg (mapcar #'car package-alist))
+        (when (eask-package--upgradable-p pkg)
+          (push (cadr (assq pkg package-archive-contents)) upgrades)))
+      (ansi-green "done ✓"))
+    upgrades))
+(defun eask-package-upgrade-all ()
+  "Upgrade for archive packages."
+  (if-let ((upgrades (eask-package--upgrades)))
+      (progn
+        (mapcar #'eask-package-upgrade upgrades)
+        (eask-msg "")
+        (eask-info "(Done upgrading all packages)"))
+    (eask-msg "")
+    (eask-info "(All packages are up to date)")))
+
+;; ~/lisp/create/elpa.el
+(defconst eask--template-elpa-name "template-elpa"
+  "Holds template project name.")
+
+;; ~/lisp/create/package.el
+(defconst eask--template-project-name "template-elisp"
+  "Holds template project name.")
+(defun eask--replace-string-in-buffer (old new)
+  "Replace OLD to NEW in buffer."
+  (let ((str (buffer-string)))
+    (setq str (eask-s-replace old new str))
+    (delete-region (point-min) (point-max))
+    (insert str)))
+(defun eask--get-user ()
+  "Return user name."
+  (string-trim (shell-command-to-string "git config user.name")))
+(defun eask--get-mail ()
+  "Return user email."
+  (string-trim (shell-command-to-string "git config user.email")))
+
+;; ~/lisp/generate/workflow/circle-ci.el
+(defun eask--circle-ci-insert-jobs (version)
+  "Insert Circle CI's jobs instruction for specific Emacs' VERSION."
+  (insert "  test-ubuntu-emacs-" version ":" "\n")
+  (insert "    docker:" "\n")
+  (insert "      - image: silex/emacs:" version "-ci" "\n")
+  (insert "        entrypoint: bash" "\n")
+  (insert "    steps:" "\n")
+  (insert "      - setup" "\n")
+  (insert "      - test" "\n"))
+
+;; ~/lisp/generate/workflow/github.el
+
+;; ~/lisp/generate/workflow/gitlab.el
+(defun eask--gitlab-insert-jobs (version)
+  "Insert GitLab Runner's jobs instruction for specific Emacs' VERSION."
+  (insert "test-" version ":" "\n")
+  (insert "  image: silex/emacs:" version "-ci" "\n")
+  (insert "  script:" "\n")
+  (insert "    - eask clean all" "\n")
+  (insert "    - eask package" "\n")
+  (insert "    - eask install" "\n")
+  (insert "    - eask compile" "\n")
+  (insert "\n"))
+
+;; ~/lisp/generate/workflow/travis-ci.el
+
+;; ~/lisp/generate/autoloads.el
+
+;; ~/lisp/generate/license.el
+(defun eask--print-license-menu ()
+  "Print all available license."
+  (eask-msg "available via `eask generate license`")
+  (eask-msg "")
+  (let* ((names (license-templates-keys))
+         (offset (eask-seq-str-max names))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (data license-templates--data)
+      (eask-msg fmt (plist-get data :key) (plist-get data :name)))
+    (eask-msg "")
+    (eask-info "(Total of %s available license%s)" (length names)
+               (eask--sinr names "" "s"))))
+
+;; ~/lisp/generate/pkg-file.el
+(defvar eask--pkg-filename)
+(defun eask--generate-from-pkg-desc ()
+  "Generate pkg-file from a package-descriptor."
+  (let* ((name (package-desc-name eask-package-desc))
+         (pkg-file (expand-file-name (format "%s-pkg.el" name))))
+    (setq eask--pkg-filename pkg-file)
+    (package-generate-description-file eask-package-desc pkg-file)))
+(defun eask--generate-from-eask-file ()
+  "Generate pkg-file from Eask file."
+  (let* ((name (eask-guess-package-name))
+         (pkg-file (expand-file-name (concat name "-pkg.el")))
+         (version (eask-package-version))
+         (description (eask-package-description))
+         (reqs (mapcar (lambda (elm)
+                         (list (if (stringp (car elm)) (intern (car elm)) (car elm))
+                               (if (= (length (cdr elm)) 1)
+                                   (nth 0 (cdr elm))
+                                 "0")))
+                       (append eask-depends-on-emacs eask-depends-on))))
+    (setq eask--pkg-filename pkg-file)
+    (write-region
+     (pp-to-string `(define-package ,name ,version ,description ',reqs))
+     nil pkg-file)))
+
+;; ~/lisp/init/cask.el
+(defun eask--convert-cask (filename)
+  "Convert Cask FILENAME to Eask."
+  (let* ((filename (expand-file-name filename))
+         (file (file-name-nondirectory (eask-root-del filename)))
+         (new-file (eask-s-replace "Cask" "Eask" file))
+         (new-filename (expand-file-name new-file))
+         (converted))
+    (eask-with-progress
+      (format "Converting file `%s` to `%s`... " file new-file)
+      (eask-with-verbosity 'debug
+        (cond ((not (string-prefix-p "Cask" file))
+               (eask-debug "✗ Invalid Cask filename, the file should start with `Cask`"))
+              ((file-exists-p new-filename)
+               (eask-debug "✗ The file `%s` already presented" new-file))
+              (t
+               (with-current-buffer (find-file new-filename)
+                 (insert-file-contents file)
+                 (goto-char (point-min))
+                 (while (re-search-forward "(source " nil t)
+                   (forward-word 1)
+                   (forward-word -1)  ; make sure infront of the word
+                   (insert "'"))      ; make it symbol
+                 (save-buffer))
+               (setq converted t))))
+      (if converted "done ✓" "skipped ✗"))
+    converted))
+
+;; ~/lisp/link/add.el
+(defun eask--package-desc-reqs (desc)
+  "Return a list of requirements from package DESC."
+  (cl-remove-if (lambda (name) (string= name "emacs"))
+                (mapcar #'car (package-desc-reqs desc))))
+(defvar eask--link-package-name    nil "Used to form package name.")
+(defvar eask--link-package-version nil "Used to form package name.")
+(defun eask--create-link (name source)
+  "Add link with NAME to PATH."
+  (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
+         (link-path (expand-file-name dir-name package-user-dir)))
+    (when (file-exists-p link-path)
+      (eask-msg "")
+      (eask-with-progress
+        (ansi-yellow "!! The link is already presented; override the existing link... ")
+        (eask--delete-symlink link-path)
+        (ansi-yellow "done !!")))
+    (make-symbolic-link source link-path)
+    (eask-msg "")
+    (eask-info "(Created link from `%s` to `%s`)" source (eask-f-filename link-path))))
+
+;; ~/lisp/link/delete.el
+(defun eask--delete-symlink (path)
+  "Delete symlink PATH."
+  (ignore-errors (delete-file path))
+  (ignore-errors (delete-directory path t)))
+(defun eask--delete-link (name)
+  "Delete a link by its' NAME."
+  (let* ((links (eask--links))
+         (source (assoc name links))
+         (link (expand-file-name name package-user-dir)))
+    (if (and source (file-symlink-p link))
+        (progn
+          (eask--delete-symlink link)
+          (eask-info "✓ Package `%s` unlinked" name)
+          t)
+      (eask-info "✗ No linked package name `%s`" name)
+      nil)))
+
+;; ~/lisp/link/list.el
+(defun eask--links ()
+  "Return a list of all links."
+  (mapcar
+   (lambda (file)
+     (cons (eask-f-filename file) (file-truename file)))
+   (cl-remove-if-not #'file-symlink-p (directory-files package-user-dir t))))
+(defun eask--print-link (link offset)
+  "Print information regarding the LINK.
+
+The argument OFFSET is used to align the result."
+  (message (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
+
+;; ~/lisp/lint/checkdoc.el
+(defvar eask--checkdoc-errors nil "Error flag.")
+(defun eask--checkdoc-print-error (text start end &optional unfixable)
+  "Print error for checkdoc."
+  (setq eask--checkdoc-errors t)
+  (let ((msg (concat (checkdoc-buffer-label) ":"
+                     (int-to-string (count-lines (point-min) (or start (point-min))))
+                     ": " text)))
+    (if (eask-strict-p) (error msg) (warn msg))
+    ;; Return nil because we *are* generating a buffered list of errors.
+    nil))
+(defun eask--checkdoc-file (filename)
+  "Run checkdoc on FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         (eask--checkdoc-errors))
+    (eask-msg "")
+    (eask-msg "`%s` with checkdoc (%s)" (ansi-green file) checkdoc-version)
+    (checkdoc-file filename)
+    (unless eask--checkdoc-errors (eask-msg "No issues found"))))
+
+;; ~/lisp/lint/declare.el
+(defun eask--check-declare-file (filename)
+  "Run check-declare on FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         (errors))
+    (eask-msg "")
+    (eask-msg "`%s` with check-declare" (ansi-green file))
+    (setq errors (check-declare-file filename))
+    (if errors
+        (with-current-buffer check-declare-warning-buffer
+          (eask-msg (buffer-string)))
+      (eask-msg "No issues found"))))
+
+;; ~/lisp/lint/elint.el
+(defun eask--elint-file (filename)
+  "Run elint on FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         (noninteractive))
+    (eask-msg "")
+    (eask-msg "`%s` with elint" (ansi-green file))
+    (eask-with-verbosity 'debug (elint-file filename))
+    (eask-print-log-buffer (elint-get-log-buffer))
+    (kill-buffer (elint-get-log-buffer))))
+
+;; ~/lisp/lint/elisp-lint.el
+(defconst eask--elisp-lint-version nil
+  "`elisp-lint' version.")
+(defun eask--elisp-lint-process-file (filename)
+  "Process FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         success)
+    (eask-msg "")
+    (eask-msg "`%s` with elisp-lint (%s)" (ansi-green file) eask--elisp-lint-version)
+    (eask-with-verbosity 'debug
+      (setq success (elisp-lint-file filename)))
+    ;; Report result!
+    (cond (success
+           (eask-msg "No issues found"))
+          ((eask-strict-p)
+           (eask-error "Linting failed")))))
+
+;; ~/lisp/lint/elsa.el
+(defconst eask--elsa-version nil
+  "Elsa version.")
+(defun eask--elsa-analyse-file (filename)
+  "Process FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         errors)
+    (eask-msg "")
+    (eask-msg "`%s` with elsa (%s)" (ansi-green file) eask--elsa-version)
+    (eask-with-verbosity 'debug
+      (setq errors (oref (elsa-analyse-file filename elsa-global-state) errors)))
+    (if errors
+        (--each (reverse errors)
+          (let ((line (string-trim (concat file ":" (elsa-message-format it)))))
+            (cond ((string-match-p "[: ][Ee]rror:" line) (eask-error line))
+                  ((string-match-p "[: ][Ww]arning:" line) (eask-warn line))
+                  (t (eask-log line)))))
+      (eask-msg "No issues found"))))
+
+;; ~/lisp/lint/indent.el
+(defun eask--undo-lines (undo-list)
+  "Return list of lines changed in UNDO-LIST."
+  (let ((lines))
+    (dolist (elm undo-list)
+      (when (and (consp elm) (numberp (cdr elm)))
+        (push (line-number-at-pos (abs (cdr elm))) lines)))
+    (reverse lines)))
+(defun eask--indent-lint-file (file)
+  "Lint indent for FILE."
+  (eask-msg "")
+  (eask-msg "`%s` with indent-lint" (ansi-green (eask-root-del file)))
+  (find-file file)
+  (let ((tick (buffer-modified-tick)))
+    (eask--silent (indent-region (point-min) (point-max)))
+    (if (/= tick (buffer-modified-tick))
+        ;; Indentation changed: warn for each line.
+        (dolist (line (eask--undo-lines buffer-undo-list))
+          (eask-report "%s:%s: mismatch indentation" (buffer-name) line))
+      (eask-log "No mismatch indentation found"))))
+
+;; ~/lisp/lint/keywords.el
+(defun eask--defined-keywords (keywords)
+  "Return t if KEYWORDS are defined correctly."
+  (let ((available-keywords (mapcar #'car finder-known-keywords))
+        (result))
+    (dolist (keyword keywords)
+      (when (memq (intern keyword) available-keywords)
+        (setq result t)))
+    result))
+
+;; ~/lisp/lint/license.el
+(defun eask--string-match-all (regexps)
+  "Return t when every REGEXPS match the `buffer-string'."
+  (cl-every (lambda (regexp)
+              (string-match-p regexp (buffer-string)))
+            regexps))
+(defun eask--scan-license (file)
+  "Scan the license FILE."
+  (with-current-buffer (find-file file)
+    ;; See https://api.github.com/licenses
+    (cond
+     ((eask--string-match-all '("GNU AFFERO GENERAL PUBLIC LICENSE"
+                                "Version 3"
+                                "You should have received a copy of the GNU Affero General Public License"))
+      '("agpl-3.0" "GNU Affero General Public License v3.0" "AGPL-3.0"))
+     ((eask--string-match-all '("Apache"
+                                "http://www.apache.org/licenses/"))
+      '("apache-2.0" "Apache License 2.0" "Apache-2.0"))
+     ((eask--string-match-all '("BSD 2-Clause"))
+      '("bsd-2-clause" "BSD 2-Clause \"Simplified\" License" "BSD-2-Clause"))
+     ((eask--string-match-all '("BSD 3-Clause"))
+      '("bsd-3-clause" "BSD 3-Clause \"New\" or \"Revised\" License" "BSD-3-Clause"))
+     ((eask--string-match-all '("Boost Software License - Version 1.0"))
+      '("bsl-1.0" "Boost Software License 1.0" "BSL-1.0"))
+     ((eask--string-match-all '("CC0 1.0"))
+      '("cc0-1.0" "Creative Commons Zero v1.0 Universal" "CC0-1.0"))
+     ((eask--string-match-all '("Eclipse Public License - v 2.0"
+                                "Eclipse Foundation"))
+      '("epl-2.0" "Eclipse Public License 2.0" "EPL-2.0"))
+     ((eask--string-match-all '("GNU General Public License"
+                                "Version 2"))
+      '("gpl-2.0" "GNU General Public License v2.0" "GPL-2.0"))
+     ((eask--string-match-all '("GNU General Public License"
+                                "version 3"
+                                "You should have received a copy of the GNU General Public License"))
+      '("gpl-3.0" "GNU General Public License v3.0" "GPL-3.0"))
+     ((eask--string-match-all '("Lesser GPL"
+                                "Version 2.1"))
+      '("lgpl-2.1" "GNU Lesser General Public License v2.1" "LGPL-2.1"))
+     ((eask--string-match-all '("Permission is hereby granted, free of charge, to any person obtaining a copy"))
+      '("mit" "MIT License" "MIT"))
+     ((eask--string-match-all '("Mozilla Public License Version 2.0"
+                                "http://mozilla.org/MPL/2.0/"))
+      '("mpl-2.0" "Mozilla Public License 2.0" "MPL-2.0"))
+     ((eask--string-match-all '("This is free and unencumbered software released into the public domain"
+                                "https://unlicense.org"))
+      '("unlicense" "The Unlicense" "Unlicense"))
+     (t
+      '("unknown" "Unknown license" "unknown")))))
+(defun eask--print-scanned-license (scanned)
+  "Print all SCANNED license."
+  (eask-msg "available via `eask lint license`")
+  (eask-msg "")
+  (let* ((names (mapcar #'car scanned))
+         (offset (eask-seq-str-max names))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (data scanned)
+      (eask-msg fmt (nth 0 data) (nth 3 data)))
+    (eask-msg "")
+    (eask-info "(Total of %s scanned license%s)" (length names)
+               (eask--sinr names "" "s"))))
+
+;; ~/lisp/lint/package.el
+(defconst eask--package-lint-version nil
+  "`package-lint' version.")
+(defun eask--package-lint-file (filename)
+  "Package lint FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename)))
+    (eask-msg "")
+    (eask-msg "`%s` with package-lint (%s)" (ansi-green file) eask--package-lint-version)
+    (with-current-buffer (find-file filename)
+      (package-lint-current-buffer)
+      (kill-this-buffer)))
+  (eask-print-log-buffer "*Package-Lint*"))
+
+;; ~/lisp/lint/regexps.el
+(defconst eask--relint-version nil
+  "`relint' version.")
+(defun eask--relint-file (filename)
+  "Package lint FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename))
+         (errors))
+    (eask-msg "")
+    (eask-msg "`%s` with relint (%s)" (ansi-green file) eask--relint-version)
+    (with-current-buffer (find-file filename)
+      (setq errors (relint-buffer (current-buffer)))
+      (dolist (err errors)
+        (let* ((msg       (nth 0 err))
+               (error-pos (nth 2 err))
+               (severity  (nth 5 err))
+               (report-func (pcase severity
+                              (`error #'eask-error)
+                              (`warning #'eask-warn))))
+          (funcall report-func "%s:%s %s: %s"
+                   file (line-number-at-pos error-pos)
+                   (capitalize (eask-2str severity)) msg)))
+      (unless errors
+        (eask-msg "No issues found"))
+      (kill-this-buffer))))
+
+;; ~/lisp/test/activate.el
+
+;; ~/lisp/test/buttercup.el
+
+;; ~/lisp/test/ert-runner.el
+
+;; ~/lisp/test/ert.el
+(defvar ert--message-loop nil
+  "Prevent inifinite recursive message function.")
+(defun eask--ert-message (func &rest args)
+  "Colorized ert messages."
+  (if ert--message-loop (apply func args)
+    (let ((ert--message-loop t))
+      (cond
+       ((string-match-p "^[ ]+FAILED " (apply #'format args))
+        (eask-msg (ansi-red (apply #'format args))))
+       ((string-match-p "^[ ]+SKIPPED " (apply #'format args))
+        (eask-msg (ansi-white (apply #'format args))))
+       ((string-match-p "^[ ]+passed " (apply #'format args))
+        (eask-msg (ansi-green (apply #'format args))))
+       (t (apply func args))))))
 
 (provide 'eask-core)
 ;; Local Variables:
