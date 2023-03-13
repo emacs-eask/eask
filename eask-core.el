@@ -216,6 +216,8 @@
          (eask--length-priority (eask-2str (eask-seq-str-max priorities))))
     (mapc #'eask--print-archive alist)))
 
+;; ~/lisp/core/cat.el
+
 ;; ~/lisp/core/compile.el
 (defconst eask-compile-log-buffer-name "*Compile-Log*"
   "Byte-compile log buffer name.")
@@ -1014,7 +1016,7 @@ will return `lint/checkdoc' with a dash between two subcommands."
                  "/"))))
 (defun eask-special-p ()
   "Return t if the command that can be run without Eask-file existence."
-  (member (eask-command) '("init/cask" "keywords" "generate/license")))
+  (member (eask-command) '("init/cask" "cat" "keywords" "generate/license")))
 (defun eask-checker-p ()
   "Return t if running Eask as the checker."
   (member (eask-command) '("check-eask")))
@@ -1308,21 +1310,22 @@ the `eask-start' execution.")
 (defun eask--flag-value (flag)
   "Return value for FLAG."
   (nth 1 (eask--flag flag)))
-(defun eask-global-p ()        (eask--flag "-g"))               ; -g, --global
-(defun eask-all-p ()           (eask--flag "-a"))               ; -a, --all
-(defun eask-quick-p ()         (eask--flag "-q"))               ; -q, --quick
-(defun eask-force-p ()         (eask--flag "-f"))               ; -f, --force
-(defun eask-dev-p ()           (eask--flag "--dev"))            ; --dev, --development
-(defun eask-debug-p ()         (eask--flag "--debug"))          ; --debug
-(defun eask-strict-p ()        (eask--flag "--strict"))         ; --strict
-(defun eask-timestamps-p ()    (eask--flag "--timestamps"))     ; --timestamps
-(defun eask-log-level-p ()     (eask--flag "--log-level"))      ; --log-level
-(defun eask-log-file-p ()      (eask--flag "--log-file"))       ; --log-file, --lf
-(defun eask-elapsed-time-p ()  (eask--flag "--elapsed-time"))   ; --elapsed-time, --et
-(defun eask-allow-error-p ()   (eask--flag "--allow-error"))    ; --allow-error
-(defun eask-insecure-p ()      (eask--flag "--insecure"))       ; --insecure
-(defun eask-no-color-p ()      (eask--flag "--no-color"))       ; --no-color
-(defun eask-json-p ()          (eask--flag "--json"))           ; --json
+(defun eask-global-p ()       (eask--flag "-g"))               ; -g, --global
+(defun eask-all-p ()          (eask--flag "-a"))               ; -a, --all
+(defun eask-quick-p ()        (eask--flag "-q"))               ; -q, --quick
+(defun eask-force-p ()        (eask--flag "-f"))               ; -f, --force
+(defun eask-dev-p ()          (eask--flag "--dev"))            ; --dev, --development
+(defun eask-debug-p ()        (eask--flag "--debug"))          ; --debug
+(defun eask-strict-p ()       (eask--flag "--strict"))         ; --strict
+(defun eask-timestamps-p ()   (eask--flag "--timestamps"))     ; --timestamps
+(defun eask-log-level-p ()    (eask--flag "--log-level"))      ; --log-level
+(defun eask-log-file-p ()     (eask--flag "--log-file"))       ; --log-file, --lf
+(defun eask-elapsed-time-p () (eask--flag "--elapsed-time"))   ; --elapsed-time, --et
+(defun eask-allow-error-p ()  (eask--flag "--allow-error"))    ; --allow-error
+(defun eask-insecure-p ()     (eask--flag "--insecure"))       ; --insecure
+(defun eask-no-color-p ()     (eask--flag "--no-color"))       ; --no-color
+(defun eask-json-p ()         (eask--flag "--json"))           ; --json
+(defun eask-number-p ()       (eask--flag "--number"))         ; -n, --number
 (defun eask-output ()      (eask--flag-value "--output"))       ; --o, --output
 (defun eask-proxy ()       (eask--flag-value "--proxy"))        ; --proxy
 (defun eask-http-proxy ()  (eask--flag-value "--http-proxy"))   ; --http-proxy
@@ -1371,15 +1374,15 @@ other scripts internally.  See function `eask-call'.")
      "--log-file"
      "--elapsed-time"
      "--no-color"
-     "--json"))
+     "--json"
+     "--number"))
   "List of boolean type options.")
 (defconst eask--option-args
   (eask--form-options
    '("--output"
      "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
      "--verbose" "--silent"
-     "--depth" "--dest"
-     "--from"))
+     "--depth" "--dest" "--from"))
   "List of arguments (number/string) type options.")
 (defconst eask--command-list
   (append eask--option-switches eask--option-args)
