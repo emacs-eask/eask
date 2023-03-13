@@ -266,13 +266,17 @@
   (message "%s" path))
 
 ;; ~/lisp/core/exec.el
+(defconst eask--exec-path-file (expand-file-name "exec-path" eask-homedir)
+  "Target file to export the `exec-path' variable.")
+(defconst eask--load-path-file (expand-file-name "load-path" eask-homedir)
+  "Target file to export the `load-path' variable.")
 (defun eask--export-env ()
   "Export environments."
-  (let ((epf (expand-file-name "exec-path" eask-homedir))
-        (lpf (expand-file-name "load-path" eask-homedir)))
-    (ignore-errors (make-directory eask-homedir t))  ; generate dir ~/.eask/
-    (write-region (getenv "PATH") nil epf)
-    (write-region (getenv "EMACSLOADPATH") nil lpf)))
+  (ignore-errors (delete-file eask--exec-path-file))
+  (ignore-errors (delete-file eask--load-path-file))
+  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
+  (write-region (getenv "PATH") nil eask--exec-path-file)
+  (write-region (getenv "EMACSLOADPATH") nil eask--load-path-file))
 
 ;; ~/lisp/core/files.el
 (defun eask--print-filename (filename)
@@ -467,6 +471,8 @@
                installed s skipped)))
 
 ;; ~/lisp/core/run.el
+(defconst eask--run-file (expand-file-name "run" eask-homedir)
+  "Target file to export the `run' scripts.")
 (defun eask--print-scripts ()
   "Print all available scripts."
   (eask-msg "available via `eask run-script`")
@@ -481,9 +487,8 @@
                (eask--sinr keys "" "s"))))
 (defun eask--export-command (command)
   "Export COMMAND instruction."
-  (let ((run (expand-file-name "run" eask-homedir)))
-    (ignore-errors (make-directory eask-homedir t))  ; generate dir ~/.eask/
-    (write-region (concat command "\n") nil run t)))
+  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
+  (write-region (concat command "\n") nil eask--run-file t))
 (defun eask--unmatched-scripts (scripts)
   "Return a list of scripts that cannot be found in `eask-scripts'."
   (let (unmatched)
@@ -1556,7 +1561,6 @@ This uses function `locate-dominating-file' to look up directory tree."
          (eask--print-env-info)
          (cond
           ((eask-special-p)  ; Commands without Eask-file needed
-           (ignore-errors (delete-directory eask-homedir t))  ; clean up
            (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
              (ignore-errors (make-directory package-user-dir t))
              (eask--with-hooks ,@body)))
