@@ -383,8 +383,10 @@ For arguments FUNC and DEPS, see function `mapc' for more information."
     (when (file-readable-p pkg-el) pkg-el)))
 (defconst eask-has-colors (getenv "EASK_HASCOLORS")
   "Return non-nil if terminal support colors.")
-(defconst eask-homedir (getenv "EASK_HOMEDIR")  ; temporary environment from node
+(defconst eask-homedir (getenv "EASK_HOMEDIR")
   "Eask temporary storage.")
+(defconst eask-invocation (getenv "EASK_INVOCATION")
+  "Eask invocation program.")
 (defun eask--str2num (str) (ignore-errors (string-to-number str)))
 (defun eask--flag (flag)
   "Return non-nil if FLAG exists.."
@@ -406,6 +408,7 @@ For arguments FUNC and DEPS, see function `mapc' for more information."
 (defun eask-allow-error-p ()  (eask--flag "--allow-error"))    ; --allow-error
 (defun eask-insecure-p ()     (eask--flag "--insecure"))       ; --insecure
 (defun eask-no-color-p ()     (eask--flag "--no-color"))       ; --no-color
+(defun eask-clean-p ()        (eask--flag "--clean"))          ; -c, --clean
 (defun eask-json-p ()         (eask--flag "--json"))           ; --json
 (defun eask-number-p ()       (eask--flag "--number"))         ; -n, --number
 (defun eask-output ()      (eask--flag-value "--output"))       ; --o, --output
@@ -456,6 +459,7 @@ other scripts internally.  See function `eask-call'.")
      "--log-file"
      "--elapsed-time"
      "--no-color"
+     "--clean"
      "--json"
      "--number"))
   "List of boolean type options.")
@@ -472,7 +476,16 @@ other scripts internally.  See function `eask-call'.")
 (defun eask-self-command-p (arg)
   "Return non-nil if ARG is known internal command."
   (member arg eask--command-list))
-(defun eask-argv (index) "Return argument value by INDEX." (elt eask-argv index))
+(defun eask-argv (index)
+  "Return argument value by INDEX."
+  (elt eask-argv index))
+(defun eask-argv-out ()
+  "Convert all internal arguments to external arguments.
+
+Simply remove `--eask' for each option, like `--eask--strict' to `--strict'."
+  (mapcar (lambda (arg)
+            (eask-s-replace "--eask" "" arg))
+          eask-argv))
 (defun eask-args ()
   "Get all arguments except options."
   (let ((argv (cl-remove-if (lambda (arg) (member arg eask--option-switches)) eask-argv))
@@ -1442,8 +1455,47 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
   "Print `*Compile-Log*' buffer."
   (when (get-buffer eask-compile-log-buffer-name)
     (with-current-buffer eask-compile-log-buffer-name
-      (eask-print-log-buffer)
+      (if (and (eask-clean-p) (eask-strict-p))
+          (eask-error (buffer-string))  ; Exit with error code!
+        (eask-print-log-buffer))
       (eask-msg ""))))
+(defun eask--byte-compile-file-external-contetnt (filename cmd)
+  "Extract result after executing byte-compile the FILENAME.
+
+The CMD is the command to start a new Emacs session."
+  (with-temp-buffer
+    (insert (shell-command-to-string cmd))
+    (goto-char (point-min))
+    (search-forward filename nil t)
+    (re-search-forward "[ \t\r\n]" nil t)
+    (let ((line (string-trim (thing-at-point 'line))))
+      (if (and (string-prefix-p "Compiling " line)
+               (or (string-match-p "... skipped" line)
+                   (string-match-p "... done" line)))
+          (delete-region (point-min) (line-end-position 1))
+        (delete-region (point-min) (point))))
+    (when (search-forward "(Total of " nil t)
+      (goto-char (point-max))
+      (delete-region (line-beginning-position -1) (point-max)))
+    (string-trim (buffer-string))))
+(defun eask--byte-compile-file-external (filename)
+  "Byte compile FILENAME with clean environment by opening a new Emacs session."
+  (let* ((cmd (split-string eask-invocation "\n" t))
+         (cmd (format "\"%s\""(mapconcat #'identity cmd "\" \"")))
+         (args (eask-args))
+         (argv (cl-remove-if
+                (lambda (arg)
+                  (or (string= "--clean" arg)  ; prevent infinite call
+                      (member arg args)))      ; remove repeated arguments
+                (eask-argv-out)))
+         (args (append `(,(eask-command) ,(concat "\"" filename "\"")) argv))
+         (args (mapconcat #'identity args " "))
+         (cmd (concat cmd " " args))
+         (content (eask--byte-compile-file-external-contetnt filename cmd)))
+    (if (string-empty-p content)
+        t  ; no error, good!
+      (with-current-buffer (get-buffer-create eask-compile-log-buffer-name)
+        (insert content)))))
 (defun eask--byte-compile-file (filename)
   "Byte compile FILENAME."
   ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
@@ -1454,7 +1506,9 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
     (eask-with-progress
       (unless byte-compile-verbose (format "Compiling %s... " filename))
       (eask-with-verbosity 'debug
-        (setq result (byte-compile-file filename)
+        (setq result (if (eask-clean-p)
+                         (eask--byte-compile-file-external filename)
+                       (byte-compile-file filename))
               result (eq result t)))
       (if result "done ✓" "skipped ✗"))
     (eask--print-compile-log)
