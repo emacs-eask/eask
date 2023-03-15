@@ -177,6 +177,19 @@ the `eask-start' execution.")
 (defun eask-dependencies ()
   "Return list of dependencies."
   (append eask-depends-on (and (eask-dev-p) eask-depends-on-dev)))
+(defun eask--package-mapc (func deps)
+  "Like function `mapc' but for process package transaction specifically.
+
+For arguments FUNC and DEPS, see function `mapc' for more information."
+  (let* ((eask--package-prefix)  ; remain untouch
+         (len (length deps))
+         (len-str (eask-2str len))
+         (fmt (concat "[%" (eask-2str (length len-str)) "d/" len-str "] "))
+         (count 0))
+    (dolist (pkg deps)
+      (cl-incf count)
+      (setq eask--package-prefix (format fmt count))
+      (funcall func pkg))))
 (defun eask--install-deps (dependencies msg)
   "Install DEPENDENCIES."
   (let* ((names (mapcar #'car dependencies))
@@ -186,7 +199,9 @@ the `eask-start' execution.")
          (pkg-installed (cl-remove-if #'package-installed-p names))
          (installed (length pkg-installed)) (skipped (- len installed)))
     (eask-log "Installing %s %s dependenc%s..." len msg ies)
-    (mapc #'eask-package-install names)
+    (eask-msg "")
+    (eask--package-mapc #'eask-package-install names)
+    (eask-msg "")
     (eask-info "(Total of %s dependenc%s installed, %s skipped)"
                installed ies skipped)))
 (defun eask-install-dependencies ()
@@ -204,6 +219,7 @@ the `eask-start' execution.")
   (when eask-depends-on
     (eask--install-deps eask-depends-on "package"))
   (when (and eask-depends-on-dev (eask-dev-p))
+    (eask-msg "")
     (eask--install-deps eask-depends-on-dev "development")))
 (defun eask-setup-paths ()
   "Setup both `exec-path' and `load-path'."
@@ -235,7 +251,7 @@ the `eask-start' execution.")
   (let* (;; Ensure symbol
          (pkg (if (stringp pkg) (intern pkg) pkg))
          ;; Wrap package name with color
-         (pkg-string (ansi-green pkg))
+         (pkg-string (ansi-green (eask-2str pkg)))
          ;; Wrap version number with color
          (pkg-version (ansi-yellow (eask-package--version-string pkg))))
     (list pkg pkg-string pkg-version)))
@@ -269,13 +285,17 @@ the `eask-start' execution.")
 (defun eask-package-installable-p (pkg)
   "Return non-nil if package is installable."
   (assq (if (stringp pkg) (intern pkg) pkg) package-archive-contents))
+(defvar eask--package-prefix ""
+  "The prefix to display before each package action.")
 (defun eask-package-install (pkg)
   "Install the package."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
   (eask--pkg-process pkg
     (cond
      ((package-installed-p pkg)
-      (eask-msg "  - Skipping %s (%s)... already installed ✗" name version))
+      (eask-msg "  - %sSkipping %s (%s)... already installed ✗"
+                eask--package-prefix
+                name version))
      ((progn
         (eask-pkg-init)
         (unless (eask-package-installable-p pkg)
@@ -285,14 +305,16 @@ the `eask-start' execution.")
                   (req-emacs (package-version-join (nth 0 (cdr req-emacs))))
                   ((version< emacs-version req-emacs)))
         (if (eask-strict-p)
-            (eask-error "  - Skipping %s (%s)... it requires Emacs %s and above ✗"
+            (eask-error "  - %sSkipping %s (%s)... it requires Emacs %s and above ✗"
+                        eask--package-prefix
                         pkg (eask-package--version-string pkg) emacs-version)
-          (eask-msg "  - Skipping %s (%s)... it requires Emacs %s and above ✗"
+          (eask-msg "  - %sSkipping %s (%s)... it requires Emacs %s and above ✗"
+                    eask--package-prefix
                     name version (ansi-yellow emacs-version)))))
      (t
       (eask--pkg-process pkg
         (eask-with-progress
-          (format "  - Installing %s (%s)... " name version)
+          (format "  - %sInstalling %s (%s)... " eask--package-prefix name version)
           (eask-with-verbosity 'debug
             ;; XXX Without ignore-errors guard, it will trigger error
             ;;
@@ -308,11 +330,11 @@ the `eask-start' execution.")
   (eask--pkg-process pkg
     (cond
      ((not (package-installed-p pkg))
-      (eask-msg "  - Skipping %s (%s)... not installed ✗" name version))
+      (eask-msg "  - %sSkipping %s (%s)... not installed ✗" eask--package-prefix name version))
      (t
       (eask--pkg-process pkg
         (eask-with-progress
-          (format "  - Uninstalling %s (%s)... " name version)
+          (format "  - %sUninstalling %s (%s)... " eask--package-prefix name version)
           (eask-with-verbosity 'debug
             (package-delete (eask-package-desc pkg t) (eask-force-p)))
           "done ✓"))))))
@@ -322,12 +344,12 @@ the `eask-start' execution.")
   (eask--pkg-process pkg
     (cond
      ((not (package-installed-p pkg))
-      (eask-msg "  - Skipping %s (%s)... not installed ✗" name version))
+      (eask-msg "  - %sSkipping %s (%s)... not installed ✗" eask--package-prefix name version))
      (t
       (eask-pkg-init)
       (eask--pkg-process pkg
         (eask-with-progress
-          (format "  - Reinstalling %s (%s)... " name version)
+          (format "  - %sReinstalling %s (%s)... " eask--package-prefix name version)
           (eask-with-verbosity 'debug
             (package-delete (eask-package-desc pkg t) t)
             (eask-ignore-errors (package-install pkg)))
@@ -1316,23 +1338,23 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 ;; ~/lisp/clean/all.el
 (defvar eask-no-cleaning-operation-p nil
   "Set to non-nil if there is no cleaning operation done.")
-(defvar eask--clean-tasks-total 0
-  "Total clean tasks.")
+(defvar eask--clean-tasks-count 0
+  "Count cleaning task.")
 (defvar eask--clean-tasks-cleaned 0
   "Total cleaned tasks")
 (defmacro eask--clean-section (title &rest body)
   "Print clean up TITLE and execute BODY."
   (declare (indent 1))
   `(let (eask-no-cleaning-operation-p)
+     (cl-incf eask--clean-tasks-count)
      (eask-with-progress
-       (format "%s... " ,title)
+       (concat "  - [" (eask-2str eask--clean-tasks-count) "/6] "
+               (format "%s... " ,title))
        (eask-with-verbosity 'debug ,@body)
-       (progn
-         (cl-incf eask--clean-tasks-total)
-         (if eask-no-cleaning-operation-p
-             "skipped ✗"
-           (cl-incf eask--clean-tasks-cleaned)
-           "done ✓")))))
+       (if eask-no-cleaning-operation-p
+           "skipped ✗"
+         (cl-incf eask--clean-tasks-cleaned)
+         "done ✓"))))
 
 ;; ~/lisp/clean/autoloads.el
 
@@ -1507,7 +1529,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
          (pkg-not-installed (cl-remove-if #'package-installed-p names))
          (installed (length pkg-not-installed)) (skipped (- len installed)))
     (eask-log "Installing %s specified package%s..." len s)
-    (mapc #'eask-package-install names)
+    (eask-msg "")
+    (eask--package-mapc #'eask-package-install names)
     (eask-msg "")
     (eask-info "(Total of %s package%s installed, %s skipped)"
                installed s skipped)))
@@ -1661,7 +1684,9 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
          (pkg-not-installed (cl-remove-if #'package-installed-p names))
          (installed (length pkg-not-installed)) (skipped (- len installed)))
     (eask-log "Reinstalling %s specified package%s..." len s)
-    (mapc #'eask-package-reinstall names)
+    (eask-msg "")
+    (eask--package-mapc #'eask-package-reinstall names)
+    (eask-msg "")
     (eask-info "(Total of %s package%s reinstalled, %s skipped)"
                installed s skipped)))
 
@@ -1709,7 +1734,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
          (pkg-installed (cl-remove-if-not #'package-installed-p names))
          (deleted (length pkg-installed)) (skipped (- len deleted)))
     (eask-log "Uninstalling %s specified package%s..." len s)
-    (mapc #'eask-package-delete names)
+    (eask-msg "")
+    (eask--package-mapc #'eask-package-delete names)
     (eask-msg "")
     (eask-info "(Total of %s package%s deleted, %s skipped)"
                deleted s skipped)))
@@ -1722,7 +1748,7 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 (defun eask-package-upgrade (pkg-desc)
   "Upgrade package using PKG-DESC."
   (let* ((name (package-desc-name pkg-desc))
-         (pkg-string (ansi-green name))
+         (pkg-string (ansi-green (eask-2str name)))
          (version-new (eask--package-version-string pkg-desc))
          (old-pkg-desc (eask-package-desc name t))
          (version-old (eask--package-version-string old-pkg-desc)))
