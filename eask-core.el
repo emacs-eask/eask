@@ -80,7 +80,8 @@ will return `lint/checkdoc' with a dash between two subcommands."
                  "/"))))
 (defun eask-special-p ()
   "Return t if the command that can be run without Eask-file existence."
-  (member (eask-command) '("init/cask" "cat" "keywords" "generate/license")))
+  (member (eask-command) '("init/cask" "cat" "keywords"
+                           "generate/ignore" "generate/license")))
 (defun eask-checker-p ()
   "Return t if running Eask as the checker."
   (member (eask-command) '("check-eask")))
@@ -667,6 +668,7 @@ This uses function `locate-dominating-file' to look up directory tree."
                    (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
                  (eask-msg "✗ Loading global Eask file... missing!"))
                (message "")
+               (package-activate-all)
                (ignore-errors (make-directory package-user-dir t))
                (eask--with-hooks ,@body))))
           ((eask-config-p)
@@ -1901,6 +1903,18 @@ The CMD is the command to start a new Emacs session."
 ;; ~/lisp/generate/workflow/travis-ci.el
 
 ;; ~/lisp/generate/autoloads.el
+
+;; ~/lisp/generate/ignore.el
+(defun eask--print-ignore-menu ()
+  "Print all available ignore."
+  (eask-msg "available via `eask generate ignore`")
+  (eask-msg "")
+  (let ((names (gitignore-templates-names)))
+    (dolist (data names)
+      (eask-msg "  %s" data))
+    (eask-msg "")
+    (eask-info "(Total of %s available ignore file%s)" (length names)
+               (eask--sinr names "" "s"))))
 
 ;; ~/lisp/generate/license.el
 (defun eask--print-license-menu ()
