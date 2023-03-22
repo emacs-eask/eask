@@ -1272,6 +1272,13 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 (defcustom eask-dist-path "dist"
   "Name of default target directory for building packages."
   :type 'string)
+(defvar eask-lint-first-file-p nil
+  "Set the flag to `t' after the first file is linted.")
+(defun eask-lint-first-newline ()
+  "Built-in linters will create extra newline, prevent that!"
+  (when eask-lint-first-file-p
+    (eask-msg "")
+    (setq eask-lint-first-file-p t)))
 
 ;; ~/lisp/checker/check-eask.el
 (defvar eask--checker-log nil)
@@ -2051,7 +2058,7 @@ The argument OFFSET is used to align the result."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
          (eask--checkdoc-errors))
-    (eask-msg "")
+    (eask-lint-first-newline)
     (eask-msg "`%s` with checkdoc (%s)" (ansi-green file) checkdoc-version)
     (checkdoc-file filename)
     (unless eask--checkdoc-errors (eask-msg "No issues found"))))
@@ -2062,7 +2069,7 @@ The argument OFFSET is used to align the result."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
          (errors))
-    (eask-msg "")
+    (eask-lint-first-newline)
     (eask-msg "`%s` with check-declare" (ansi-green file))
     (setq errors (check-declare-file filename))
     (if errors
@@ -2076,7 +2083,7 @@ The argument OFFSET is used to align the result."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename))
          (noninteractive))
-    (eask-msg "")
+    (eask-lint-first-newline)
     (eask-msg "`%s` with elint" (ansi-green file))
     (eask-with-verbosity 'debug (elint-file filename))
     (eask-print-log-buffer (elint-get-log-buffer))
