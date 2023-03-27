@@ -634,6 +634,7 @@ This uses function `locate-dominating-file' to look up directory tree."
   (declare (indent 1) (debug t))
   `(let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
           (package-user-dir (expand-file-name "elpa" user-emacs-directory))
+          (early-init-file (locate-user-emacs-file "early-init.el"))
           (user-init-file (locate-user-emacs-file "init.el"))
           (custom-file (locate-user-emacs-file "custom.el")))
      ,@body))
@@ -1797,6 +1798,21 @@ The CMD is the command to start a new Emacs session."
     result))
 
 ;; ~/lisp/core/status.el
+(defun eask--environment-name ()
+  "Get the working environment name."
+  (cond ((eask-global-p) "global (~/.eask/)")
+        ((eask-config-p) "configuration (~/.emacs.d/)")
+        (t               "development (./)")))
+(defun eask--print-title (title)
+  "Print section TITLE."
+  (eask-msg "")
+  (eask-msg (ansi-underscore title))
+  (eask-msg ""))
+(defun eask--print-info (pair)
+  "Print environment info PAIR."
+  (let ((title   (eask-2str (car pair)))
+        (content (eask-2str (cdr pair))))
+    (eask-msg "   %-22s %s" title (ansi-bright-black content))))
 
 ;; ~/lisp/core/uninstall.el
 (defun eask--uninstall-packages(names)
