@@ -618,18 +618,6 @@ This uses function `locate-dominating-file' to look up directory tree."
   (when-let* ((files (eask--find-files start-path))
               (file (car files)))
     (eask-file-load file)))
-(defun eask--print-env-info ()
-  "Display environment information at the very top of the execution."
-  (eask-msg "")
-  (eask-msg "✓ Checking Emacs version %s... done!" emacs-version)
-  (eask-with-verbosity 'debug
-    (eask-msg "  💡 Invoke from %s" invocation-directory)
-    (eask-msg "  💡 Build No. %s" emacs-build-number)
-    (eask-msg "  💡 System configuration %s" system-configuration)
-    (when-let ((emacs-build-time)
-               (time (format-time-string "%Y-%m-%d" emacs-build-time)))
-      (eask-msg "  💡 Build time %s" time)))
-  (eask-msg "✓ Checking system %s... done!" system-type))
 (defmacro eask--with-hooks (&rest body)
   "Execute BODY with before/after hooks."
   (declare (indent 0) (debug t))
@@ -657,17 +645,17 @@ This uses function `locate-dominating-file' to look up directory tree."
        (setq eask--initialized-p t)
        (eask--setup-env
          (eask--handle-global-options)
-         (eask--print-env-info)
          (cond
           ((or (eask-global-p) (eask-special-p))  ; Commands without Eask-file needed
            (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
                ;; We accept Eask-file in `global' scope, but it shouldn't be used
                ;; for the sandbox.
-               (if (eask-file-try-load "./")
-                   (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
-                 (eask-msg "✗ Loading global Eask file... missing!"))
-               (message "")
+               (eask-with-verbosity 'debug
+                 (if (eask-file-try-load "./")
+                     (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
+                   (eask-msg "✗ Loading global Eask file... missing!"))
+                 (message ""))
                (package-activate-all)
                (ignore-errors (make-directory package-user-dir t))
                (eask--with-hooks ,@body))))
@@ -675,14 +663,15 @@ This uses function `locate-dominating-file' to look up directory tree."
            (let ((inhibit-config (eask-quick-p)))
              ;; We accept Eask-file in `config' scope, but it shouldn't be used
              ;; for the sandbox.
-             (if (eask-file-try-load "./")
-                 (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
-               (eask-msg "✗ Loading config Eask file... missing!"))
-             (message "")
+             (eask-with-verbosity 'debug
+               (if (eask-file-try-load "./")
+                   (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
+                 (eask-msg "✗ Loading config Eask file... missing!"))
+               (message ""))
              (package-activate-all)
              (eask-with-progress
                (ansi-green "Loading your configuration... ")
-               (eask-with-verbosity 'debug
+               (eask-with-verbosity 'all
                  (unless inhibit-config
                    (load (locate-user-emacs-file "early-init.el") t)
                    (load (locate-user-emacs-file "../.emacs") t)
@@ -692,12 +681,13 @@ This uses function `locate-dominating-file' to look up directory tree."
           (t
            (eask--setup-home nil  ; `nil' is the `default-directory'
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
-               (if (eask-file-try-load "./")
-                   (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
-                 (eask-msg "✗ Loading Eask file... missing!")
-                 (eask-help "core/init"))
-               (when eask-file
-                 (message "")
+               (eask-with-verbosity 'debug
+                 (if (eask-file-try-load "./")
+                     (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
+                   (eask-msg "✗ Loading Eask file... missing!"))
+                 (message ""))
+               (if (not eask-file)
+                   (eask-help "core/init")
                  (package-activate-all)
                  (ignore-errors (make-directory package-user-dir t))
                  (eask--silent (eask-setup-paths))
@@ -969,7 +959,7 @@ This uses function `locate-dominating-file' to look up directory tree."
 (defcustom eask-verbosity 3
   "Log level for all messages; 4 means trace most anything, 0 means nothing.
 
-Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
+Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
   :type 'integer)
 (defcustom eask-timestamps nil
   "Log messages with timestamps."
@@ -978,7 +968,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
   "Log messages with level."
   :type 'boolean)
 (defcustom eask-level-color
-  '((debug . ansi-blue)
+  '((all   . ansi-magenta)
+    (debug . ansi-blue)
     (log   . ansi-white)
     (info  . ansi-cyan)
     (warn  . ansi-yellow)
@@ -988,6 +979,7 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 or above (debug)."
 (defun eask--verb2lvl (symbol)
   "Convert verbosity SYMBOL to level."
   (cl-case symbol
+    (`all   5)
     (`debug 4)
     (`log   3)
     (`info  2)
@@ -1803,6 +1795,8 @@ The CMD is the command to start a new Emacs session."
       (when (string-match-p query (eask-2str package))
         (push package result)))
     result))
+
+;; ~/lisp/core/status.el
 
 ;; ~/lisp/core/uninstall.el
 (defun eask--uninstall-packages(names)
