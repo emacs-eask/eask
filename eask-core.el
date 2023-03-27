@@ -1368,6 +1368,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
 ;; ~/lisp/clean/all.el
 (defvar eask-no-cleaning-operation-p nil
   "Set to non-nil if there is no cleaning operation done.")
+(defconst eask--clean-tasks-total 6
+  "Count cleaning task.")
 (defvar eask--clean-tasks-count 0
   "Count cleaning task.")
 (defvar eask--clean-tasks-cleaned 0
@@ -1378,7 +1380,7 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
   `(let (eask-no-cleaning-operation-p)
      (cl-incf eask--clean-tasks-count)
      (eask-with-progress
-       (concat "  - [" (eask-2str eask--clean-tasks-count) "/6] "
+       (concat (format "  - [%s/%s] " eask--clean-tasks-count eask--clean-tasks-total)
                (format "%s... " ,title))
        (eask-with-verbosity 'debug ,@body)
        (if eask-no-cleaning-operation-p
