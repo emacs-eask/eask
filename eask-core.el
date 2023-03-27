@@ -1269,8 +1269,8 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
 (defun eask-lint-first-newline ()
   "Built-in linters will create extra newline, prevent that!"
   (when eask-lint-first-file-p
-    (eask-msg "")
-    (setq eask-lint-first-file-p t)))
+    (eask-msg ""))
+  (setq eask-lint-first-file-p t))
 
 ;; ~/lisp/checker/check-eask.el
 (defvar eask--checker-log nil)
