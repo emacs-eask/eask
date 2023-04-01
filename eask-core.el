@@ -1038,7 +1038,7 @@ character."
   "Make sure all keywords is displayable in STRING."
   (let* ((string (eask--msg-char-displayable "✓" "v" string))
          (string (eask--msg-char-displayable "✗" "X" string))
-         (string (eask--msg-char-displayable "💡" "?!" string)))
+         (string (eask--msg-char-displayable "💡" "<?>" string)))
     string))
 (defun eask--format-paint-kwds (msg &rest args)
   "Paint keywords after format MSG and ARGS."
@@ -1170,12 +1170,12 @@ character."
     (while (not (eobp))
       (forward-line 1)
       (goto-char (line-beginning-position))
-      (insert "  ")
+      (insert "    ")
       (goto-char (line-end-position))
       (setq max-column (max (current-column) max-column)))
     (eask-msg (concat "''" (spaces-string max-column) "''"))
     (eask-msg (ansi-white (buffer-string)))
-    (eask-msg (concat "''" (spaces-string max-column) "'" "'"))))
+    (eask-msg (concat "''" (spaces-string max-column) "''"))))
 (defun eask-help (command)
   "Show COMMAND's help instruction."
   (let* ((command (eask-2str command))  ; convert to string
@@ -1183,7 +1183,10 @@ character."
     (if (file-exists-p help-file)
         (with-temp-buffer
           (insert-file-contents help-file)
-          (unless (string= (buffer-string) "")
+          (unless (string-empty-p (buffer-string))
+            (let ((buf-str (eask--msg-displayable-kwds (buffer-string))))
+              (erase-buffer)
+              (insert buf-str))
             (eask--help-display)))
       (eask-error "Help manual missig %s" help-file))))
 (defun eask--checker-existence ()
