@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: jcs090218/setup-emacs@master
       with:
-        version: 28.2
+        version: 29.1
 
     - uses: emacs-eask/setup-eask@master
       with:
