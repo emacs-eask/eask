@@ -1100,7 +1100,8 @@ character."
     elcs))
 (defun eask-package-multi-p ()
   "Return t if multi-files package."
-  (< 1 (length (eask-package-files))))
+  (or (bound-and-true-p package-build-build-function)
+      (< 1 (length (eask-package-files)))))
 (defun eask-package-single-p ()
   "Return t if single file package."
   (not (eask-package-multi-p)))
