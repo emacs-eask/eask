@@ -34,7 +34,7 @@
 ;;   - peek definition
 ;;
 ;; Generally, you would not want to call any of these functions or use any of
-;; these variables from your Emacs editor environment. Unless you are extending
+;; these variables from your Emacs editor environment.  Unless you are extending
 ;; Eask's core functionalities.
 ;;
 ;; (@* "Usage" )
