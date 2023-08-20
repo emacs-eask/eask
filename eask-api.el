@@ -28,21 +28,15 @@
 (require 'cl-lib)
 (require 'subr-x)
 
-(defgroup eask-api nil
-  "Eask API."
-  :prefix "eask-api-"
-  :group 'tool
-  :link '(url-link :tag "Repository" "https://github.com/emacs-eask/eask-api"))
-
 (defcustom eask-api-strict-p t
   "Set to nil if you want to load Eask API whenever it's possible."
   :type 'boolean
-  :group 'eask-api)
+  :group 'eask)
 
 (defcustom eask-api-executable nil
   "Executable to eask-cli."
   :type 'string
-  :group 'eask-api)
+  :group 'eask)
 
 ;;
 ;;; Externals

@@ -25,6 +25,34 @@
 ;;
 
 ;;; Code:
+
+;;
+;; (@* "Externals" )
+;;
+(defvar github-elpa-archive-dir)
+(defvar github-elpa-recipes-dir)
+(declare-function github-elpa-build "ext:github-elpa.el")
+(defvar license-templates--data)
+(declare-function license-templates-keys "ext:license-templates.el")
+(defvar checkdoc-version)
+(defvar checkdoc-create-error-function)
+(defvar check-declare-warning-buffer)
+(defvar finder-known-keywords)
+(declare-function --each "ext:dash.el")
+(declare-function package-directory-recipe "ext:package-build.el")
+(declare-function checkdoc-buffer-label "ext:checkdoc.el")
+(declare-function package-lint-current-buffer "ext:package-lint.el")
+(defvar elsa-global-state)
+(declare-function elsa-analyse-file "ext:elsa.el")
+(declare-function elsa-message-format "ext:elsa.el")
+(declare-function elisp-lint-file "ext:elisp-lint.el")
+(declare-function elint-get-log-buffer "ext:elint.el")
+(declare-function relint-buffer "ext:relint.el")
+(declare-function gitignore-templates-names "ext:gitignore-templates.el")
+
+;;
+;; (@* "Source" )
+;;
 { SOURCE }
 
 (provide 'eask-core)

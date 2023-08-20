@@ -53,6 +53,12 @@
 
 ;;; Code:
 
+(defgroup eask nil
+  "Core Eask APIs, for Eask CLI development."
+  :prefix "eask-"
+  :group 'tool
+  :link '(url-link :tag "Repository" "https://github.com/emacs-eask/eask"))
+
 (require 'eask-api)
 
 (provide 'eask)
