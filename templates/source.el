@@ -29,6 +29,14 @@
 ;;
 ;; (@* "Externals" )
 ;;
+(defvar ansi-inhibit-ansi)
+(declare-function ansi-bright-black "ext:ansi.el")
+(declare-function ansi-underscore "ext:ansi.el")
+(declare-function ansi-red "ext:ansi.el")
+(declare-function ansi-blue "ext:ansi.el")
+(declare-function ansi-green "ext:ansi.el")
+(declare-function ansi-white "ext:ansi.el")
+(declare-function ansi-yellow "ext:ansi.el")
 (defvar github-elpa-archive-dir)
 (defvar github-elpa-recipes-dir)
 (declare-function github-elpa-build "ext:github-elpa.el")
@@ -39,7 +47,9 @@
 (defvar check-declare-warning-buffer)
 (defvar finder-known-keywords)
 (declare-function --each "ext:dash.el")
-(declare-function package-directory-recipe "ext:package-build.el")
+(declare-function package-directory-recipe "ext:package-build.el")  ; extern
+(defvar package-build-default-files-spec)
+(declare-function package-build-expand-files-spec "ext:package-build.el")
 (declare-function checkdoc-buffer-label "ext:checkdoc.el")
 (declare-function package-lint-current-buffer "ext:package-lint.el")
 (defvar elsa-global-state)
