@@ -26,6 +26,9 @@
 
 ;;; Code:
 
+;;
+;; (@* "Externals" )
+;;
 (defvar github-elpa-archive-dir)
 (defvar github-elpa-recipes-dir)
 (declare-function github-elpa-build "ext:github-elpa.el")
@@ -46,6 +49,10 @@
 (declare-function elint-get-log-buffer "ext:elint.el")
 (declare-function relint-buffer "ext:relint.el")
 (declare-function gitignore-templates-names "ext:gitignore-templates.el")
+
+;;
+;; (@* "Source" )
+;;
 
 ;; ~/lisp/_prepare.el
 (defconst eask-is-windows (memq system-type '(cygwin windows-nt ms-dos))
@@ -152,7 +159,7 @@ Argument BODY are forms for execution."
     (if (<= len 1) form-1 form-2)))
 (defun eask-current-time ()
   "Return current time."
-  (let ((now (current-time))) (logior (ash (car now) 16) (cadr now))))
+  (let ((now (current-time))) (logior (lsh (car now) 16) (cadr now))))
 (defun eask-seq-str-max (sequence)
   "Return max length in SEQUENCE of strings."
   (let ((result 0))
@@ -169,7 +176,8 @@ Argument BODY are forms for execution."
 (defun eask--download-archives ()
   "If archives download failed; download it manually."
   (dolist (archive package-archives)
-    (let* ((name (car archive))
+    (let* ((location (cdr archive))
+           (name (car archive))
            (file "archive-contents")
            (dir (expand-file-name (concat "archives/" name) package-user-dir))
            (local-file (expand-file-name file dir))
@@ -662,7 +670,7 @@ Argument BODY are forms for execution."
      (setq result (progn ,@body))
      ;; XXX: after loading Eask file, we revert those functions back to normal!
      (eask--loop-file-keywords
-      (lambda (keyword _api old)
+      (lambda (keyword api old)
         (defalias keyword (symbol-function old))))
      result))
 (defvar eask-file nil "The Eask file's filename.")
@@ -1061,16 +1069,13 @@ ELPA)."
   "Log level for all messages; 4 means trace most anything, 0 means nothing.
 
 Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
-  :type 'integer
-  :group 'eask)
+  :type 'integer)
 (defcustom eask-timestamps nil
   "Log messages with timestamps."
-  :type 'boolean
-  :group 'eask)
+  :type 'boolean)
 (defcustom eask-log-level nil
   "Log messages with level."
-  :type 'boolean
-  :group 'eask)
+  :type 'boolean)
 (defcustom eask-level-color
   '((all   . ansi-magenta)
     (debug . ansi-blue)
@@ -1079,8 +1084,7 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
     (warn  . ansi-yellow)
     (error . ansi-red))
   "Alist of each log level's color, in (SYMBOL . ANSI-FUNCTION)."
-  :type 'alist
-  :group 'eask)
+  :type 'alist)
 (defun eask--verb2lvl (symbol)
   "Convert verbosity SYMBOL to level."
   (cl-case symbol
@@ -1221,8 +1225,7 @@ Arguments FNC and ARGS are used for advice `:around'."
   "Directory path to create log files.")
 (defcustom eask-log-file nil
   "Weather to generate log files."
-  :type 'boolean
-  :group 'eask)
+  :type 'boolean)
 (defmacro eask--log-write-buffer (buffer file)
   "Write BUFFER to FILE."
   `(when (get-buffer-create ,buffer)
@@ -1275,12 +1278,10 @@ Arguments FNC and ARGS are used for advice `:around'."
     (string-trim (ls-lisp-format-file-size size t))))
 (defcustom eask-elapsed-time nil
   "Log with elapsed time."
-  :type 'boolean
-  :group 'eask)
+  :type 'boolean)
 (defcustom eask-minimum-reported-time 0.1
   "Minimal load time that will be reported."
-  :type 'number
-  :group 'eask)
+  :type 'number)
 (defmacro eask-with-progress (msg-start body msg-end)
   "Progress BODY wrapper with prefix (MSG-START) and suffix (MSG-END) messages."
   (declare (indent 0) (debug t))
@@ -1445,28 +1446,22 @@ variable we use to test validation."
     (eask-warn "%s cannot be an empty string" name)))
 (defcustom eask-file-loaded-hook nil
   "Hook runs after Easkfile is loaded."
-  :type 'hook
-  :group 'eask)
+  :type 'hook)
 (defcustom eask-before-command-hook nil
   "Hook runs before command is executed."
-  :type 'hook
-  :group 'eask)
+  :type 'hook)
 (defcustom eask-after-command-hook nil
   "Hook runs after command is executed."
-  :type 'hook
-  :group 'eask)
+  :type 'hook)
 (defcustom eask-on-error-hook nil
   "Hook runs when error is triggered."
-  :type 'hook
-  :group 'eask)
+  :type 'hook)
 (defcustom eask-on-warning-hook nil
   "Hook runs when warning is triggered."
-  :type 'hook
-  :group 'eask)
+  :type 'hook)
 (defcustom eask-dist-path "dist"
   "Name of default target directory for building packages."
-  :type 'string
-  :group 'eask)
+  :type 'string)
 (defvar eask-lint-first-file-p nil
   "Set the flag to t after the first file is linted.")
 (defun eask-lint-first-newline ()
@@ -1494,7 +1489,8 @@ variable we use to test validation."
 
 For arguments LEVEL and MSG, please see function `eask--write-log' for more
 information."
-  (let* ((bounds (bounds-of-thing-at-point 'sexp))
+  (let* ((thing (thing-at-point 'sexp))
+         (bounds (bounds-of-thing-at-point 'sexp))
          (filename (or load-file-name eask-file))
          (start (car bounds))
          (end (cdr bounds))
@@ -1619,10 +1615,9 @@ Argument LEVEL and MSG are data from the debug log signal."
         "done ✓")
       (setq delete-dir t))
     (eask-msg "")
-    (eask-info "(Total of %s file%s and %s directory deleted, %s skipped)" deleted
+    (eask-info "(Total of %s file%s, and %s directory deleted)" deleted
                (eask--sinr deleted "" "s")
-               (if delete-dir "1" "0")
-               (- 3 deleted))))
+               (if delete-dir "1" "0"))))
 
 ;; ~/lisp/clean/elc.el
 
@@ -1645,10 +1640,8 @@ Argument LEVEL and MSG are data from the debug log signal."
         "done ✓")
       (setq delete-dir t))
     (eask-msg "")
-    (eask-info "(Total of %s log file%s and %s directory deleted, %s skipped)"
-               deleted
+    (eask-info "(Total of %s log file%s deleted, %s skipped)" deleted
                (eask--sinr deleted "" "s")
-               (if delete-dir "1" "0")
                (- (length log-files) deleted))))
 
 ;; ~/lisp/clean/pkg-file.el
@@ -2100,7 +2093,7 @@ Argument VERSION is a string represent the version number of this package."
   "Upgrade for archive packages."
   (if-let ((upgrades (eask-package--upgrades)))
       (progn
-        (mapc #'eask-package-upgrade upgrades)
+        (mapcar #'eask-package-upgrade upgrades)
         (eask-msg "")
         (eask-info "(Done upgrading all packages)"))
     (eask-msg "")
@@ -2241,8 +2234,8 @@ Argument VERSION is a string represent the version number of this package."
                 (mapcar #'car (package-desc-reqs desc))))
 (defvar eask--link-package-name    nil "Used to form package name.")
 (defvar eask--link-package-version nil "Used to form package name.")
-(defun eask--create-link (source)
-  "Add link with SOURCE path."
+(defun eask--create-link (name source)
+  "Add link with NAME to SOURCE path."
   (let* ((dir-name (format "%s-%s" eask--link-package-name eask--link-package-version))
          (link-path (expand-file-name dir-name package-user-dir)))
     (when (file-exists-p link-path)
@@ -2288,7 +2281,7 @@ The argument OFFSET is used to align the result."
 
 ;; ~/lisp/lint/checkdoc.el
 (defvar eask--checkdoc-errors nil "Error flag.")
-(defun eask--checkdoc-print-error (text start _end &optional _unfixable)
+(defun eask--checkdoc-print-error (text start end &optional unfixable)
   "Print error for checkdoc.
 
 Arguments TEXT, START, END and UNFIXABLE are required for this function to
