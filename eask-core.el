@@ -26,20 +26,6 @@
 
 ;;; Code:
 
-(require 'ansi-color)
-(require 'package)
-(require 'project)
-(require 'json)
-(require 'nsm)
-(require 'url-vars)
-
-(require 'cl-lib)
-(require 'files)
-(require 'ls-lisp)
-(require 'pp)
-(require 'rect)
-(require 'subr-x)
-
 ;;
 ;; (@* "Externals" )
 ;;
@@ -51,6 +37,8 @@
 (declare-function ansi-green "ext:ansi.el")
 (declare-function ansi-white "ext:ansi.el")
 (declare-function ansi-yellow "ext:ansi.el")
+(declare-function ansi--substitute "ext:ansi.el")
+(defvar github-elpa-working-dir)
 (defvar github-elpa-archive-dir)
 (defvar github-elpa-recipes-dir)
 (declare-function github-elpa-build "ext:github-elpa.el")
@@ -61,8 +49,8 @@
 (defvar check-declare-warning-buffer)
 (defvar finder-known-keywords)
 (declare-function --each "ext:dash.el")
-(declare-function package-directory-recipe "ext:package-build.el")  ; extern
 (defvar package-build-default-files-spec)
+(declare-function package-directory-recipe "ext:package-recipe.el")
 (declare-function package-build-expand-files-spec "ext:package-build.el")
 (declare-function checkdoc-buffer-label "ext:checkdoc.el")
 (declare-function package-lint-current-buffer "ext:package-lint.el")
@@ -75,7 +63,7 @@
 (declare-function gitignore-templates-names "ext:gitignore-templates.el")
 
 ;;
-;; (@* "Signatures" )
+;; (@* "Internal" )
 ;;
 (defvar eask--package-prefix)
 (defvar eask-depends-on-recipe-p)
@@ -120,11 +108,6 @@
         (eask-is-linux   'unix)
         (t               'unknown))
   "Return current OS type.")
-(defun eask--load--adv (fnc &rest args)
-  "Prevent `_prepare.el' loading twice.
-
-Arguments FNC and ARGS are used for advice `:around'."
-  (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
 (defconst eask-argv argv
   "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
 (defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
@@ -141,6 +124,354 @@ Arguments FNC and ARGS are used for advice `:around'."
             basename (file-name-nondirectory (directory-file-name dir))))
     dir)
   "Source `lisp' directory; should always end with slash.")
+(defmacro eask-defvc< (version &rest body)
+  "Define scope if Emacs version is below VERSION.
+
+Argument BODY are forms for execution."
+  (declare (indent 1) (debug t))
+  `(when (< emacs-major-version ,version) ,@body))
+(defmacro eask--silent (&rest body)
+  "Execute BODY without message."
+  (declare (indent 0) (debug t))
+  `(let ((inhibit-message t) message-log-max) ,@body))
+(defmacro eask--unsilent (&rest body)
+  "Execute BODY with message."
+  (declare (indent 0) (debug t))
+  `(let (inhibit-message) ,@body))
+(defmacro eask--pkg-process (pkg &rest body)
+  "Execute BODY with PKG's related variables."
+  (declare (indent 1) (debug t))
+  `(let* ((pkg-info (eask--pkg-transaction-vars ,pkg))
+          (pkg      (nth 0 pkg-info))
+          (name     (nth 1 pkg-info))
+          (version  (nth 2 pkg-info)))
+     ,@body))
+(defmacro eask-with-archives (archives &rest body)
+  "Scope that temporary make ARCHIVES available.
+
+Argument BODY are forms for execution."
+  (declare (indent 1) (debug t))
+  `(let ((package-archives package-archives)
+         (archives (eask-listify ,archives))
+         (added))
+     (dolist (archive archives)
+       (unless (assoc archive package-archives)
+         (setq added t)
+         (eask-with-progress
+           (format "Adding required archives (%s)... " (ansi-yellow archive))
+           (eask-f-source archive)
+           "done ✓")))
+     (when added
+       (eask-with-progress
+         "Refresh archives information... "
+         (eask--silent (eask-pkg-init t))
+         "done ✓"))
+     ,@body))
+(defconst eask-has-colors (getenv "EASK_HASCOLORS")
+  "Return non-nil if terminal support colors.")
+(defconst eask-homedir (getenv "EASK_HOMEDIR")
+  "Eask temporary storage.")
+(defconst eask-invocation (getenv "EASK_INVOCATION")
+  "Eask invocation program.")
+(defconst eask--option-switches
+  (eask--form-options
+   '("-g" "-c" "-a" "-q" "-f" "--dev"
+     "--debug" "--strict"
+     "--allow-error"
+     "--insecure"
+     "--timestamps" "--log-level"
+     "--log-file"
+     "--elapsed-time"
+     "--no-color"
+     "--clean"
+     "--json"
+     "--number"))
+  "List of boolean type options.")
+(defconst eask--option-args
+  (eask--form-options
+   '("--output"
+     "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
+     "--verbose" "--silent"
+     "--depth" "--dest" "--from"))
+  "List of arguments (number/string) type options.")
+(defconst eask--command-list
+  (append eask--option-switches eask--option-args)
+  "List of commands to accept, so we can avoid unknown option error.")
+(defmacro eask--batch-mode (&rest body)
+  "Execute forms BODY in batch-mode."
+  (declare (indent 0) (debug t))
+  `(let ((argv (eask-args))
+         load-file-name buffer-file-name)
+     ,@body))
+(defmacro eask--setup-env (&rest body)
+  "Execute BODY with workspace setup."
+  (declare (indent 0) (debug t))
+  `(eask--batch-mode
+     (let (;; XXX: this will make command `info', `files' work as expected;
+           ;; but the relative paths file spec will be lost...
+           ;;
+           ;; So commands like `load' would NOT work!
+           (default-directory (cond ((eask-global-p) eask-homedir)
+                                    ((eask-config-p) user-emacs-directory)
+                                    (t default-directory)))
+           (alist))
+       (dolist (cmd eask--command-list)
+         (push (cons cmd (lambda (&rest _))) alist))
+       (setq command-switch-alist (append command-switch-alist alist))
+       ,@body)))
+(defconst eask-file-keywords
+  '("package" "website-url" "keywords"
+    "author" "license"
+    "package-file" "package-descriptor" "files"
+    "script"
+    "source" "source-priority"
+    "depends-on" "development"
+    "exec-paths" "load-paths")
+  "List of Eask file's DSL keywords.")
+(defmacro eask--alias-env (&rest body)
+  "Replace all Eask file functions temporary; this is only used when loading
+Eask file in the workspace.
+
+Argument BODY are forms for execution."
+  (declare (indent 0) (debug t))
+  `(let (result)
+     ;; XXX: Magic here is we replace all keyword functions with `eask-xxx'...
+     (eask--loop-file-keywords
+      (lambda (keyword api old)
+        (defalias old (symbol-function keyword))
+        (defalias keyword (symbol-function api))))
+     (setq result (progn ,@body))
+     ;; XXX: after loading Eask file, we revert those functions back to normal!
+     (eask--loop-file-keywords
+      (lambda (keyword _api old)
+        (defalias keyword (symbol-function old))))
+     result))
+(defmacro eask--with-hooks (&rest body)
+  "Execute BODY with before/after hooks."
+  (declare (indent 0) (debug t))
+  `(let* ((command (eask-command))
+          (before  (concat "eask-before-" command "-hook"))
+          (after   (concat "eask-after-" command "-hook")))
+     (run-hooks 'eask-before-command-hook)
+     (run-hooks (intern before))
+     ,@body
+     (run-hooks (intern after))
+     (run-hooks 'eask-after-command-hook)))
+(defmacro eask--setup-home (dir &rest body)
+  "Set up config directory in DIR, then execute BODY."
+  (declare (indent 1) (debug t))
+  `(let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
+          (package-user-dir (expand-file-name "elpa" user-emacs-directory))
+          (early-init-file (locate-user-emacs-file "early-init.el"))
+          (user-init-file (locate-user-emacs-file "init.el"))
+          (custom-file (locate-user-emacs-file "custom.el")))
+     ,@body))
+(defmacro eask-start (&rest body)
+  "Execute BODY with workspace setup."
+  (declare (indent 0) (debug t))
+  `(unless eask-loading-file-p
+     (if eask--initialized-p (progn ,@body)
+       (setq eask--initialized-p t)
+       (eask--setup-env
+         (eask--handle-global-options)
+         (cond
+          ((or (eask-global-p) (eask-special-p))  ; Commands without Eask-file needed
+           (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
+             (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
+               ;; We accept Eask-file in `global' scope, but it shouldn't be used
+               ;; for the sandbox.
+               (eask-with-verbosity 'debug
+                 (if (eask-file-try-load "./")
+                     (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
+                   (eask-msg "✗ Loading global Eask file... missing!"))
+                 (message ""))
+               (package-activate-all)
+               (ignore-errors (make-directory package-user-dir t))
+               (eask--with-hooks ,@body))))
+          ((eask-config-p)
+           (let ((inhibit-config (eask-quick-p)))
+             ;; We accept Eask-file in `config' scope, but it shouldn't be used
+             ;; for the sandbox.
+             (eask-with-verbosity 'debug
+               (if (eask-file-try-load "./")
+                   (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
+                 (eask-msg "✗ Loading config Eask file... missing!"))
+               (message ""))
+             (package-activate-all)
+             (eask-with-progress
+               (ansi-green "Loading your configuration... ")
+               (eask-with-verbosity 'all
+                 (unless inhibit-config
+                   (load (locate-user-emacs-file "early-init.el") t)
+                   (load (locate-user-emacs-file "../.emacs") t)
+                   (load (locate-user-emacs-file "init.el") t)))
+               (ansi-green (if inhibit-config "skipped ✗" "done ✓")))
+             (eask--with-hooks ,@body)))
+          (t
+           (eask--setup-home nil  ; `nil' is the `default-directory'
+             (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
+               (eask-with-verbosity 'debug
+                 (if (eask-file-try-load "./")
+                     (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
+                   (eask-msg "✗ Loading Eask file... missing!"))
+                 (message ""))
+               (if (not eask-file)
+                   (eask-help "core/init")
+                 (package-activate-all)
+                 (ignore-errors (make-directory package-user-dir t))
+                 (eask--silent (eask-setup-paths))
+                 (eask--with-hooks ,@body))))))))))
+(defconst eask-source-mapping
+  `((gnu          . "https://elpa.gnu.org/packages/")
+    (nongnu       . "https://elpa.nongnu.org/nongnu/")
+    (celpa        . "https://celpa.conao3.com/packages/")
+    (jcs-elpa     . "https://jcs-emacs.github.io/jcs-elpa/packages/")
+    (marmalade    . "https://marmalade-repo.org/packages/")
+    (melpa        . "https://melpa.org/packages/")
+    (melpa-stable . "https://stable.melpa.org/packages/")
+    (org          . "https://orgmode.org/elpa/")
+    (shmelpa      . "https://shmelpa.commandlinesystems.com/packages/"))
+  "Mapping of source name and url.")
+(defmacro eask--save-eask-file-state (&rest body)
+  "Execute BODY without touching the Eask-file global variables."
+  (declare (indent 0) (debug t))
+  `(let (package-archives
+         package-archive-priorities
+         eask-file
+         eask-file-root
+         eask-package
+         eask-package-desc
+         eask-website-url
+         eask-keywords
+         eask-authors
+         eask-licenses
+         eask-package-file
+         eask-package-descriptor
+         eask-files
+         eask-scripts
+         eask-depends-on-emacs
+         eask-depends-on
+         eask-depends-on-dev)
+     ,@body))
+(defmacro eask--save-load-eask-file (file success &rest error)
+  "Load an Eask FILE and execute forms SUCCESS or ERROR."
+  (declare (indent 2) (debug t))
+  `(eask--save-eask-file-state
+     (eask--setup-env
+       (eask--alias-env
+         (if (let ((default-directory (file-name-directory ,file)))
+               (ignore-errors (eask-file-load ,file)))
+             (progn ,success)
+           ,@error)))))
+(defcustom eask-verbosity 3
+  "Log level for all messages; 4 means trace most anything, 0 means nothing.
+
+Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
+  :type 'integer
+  :group 'eask)
+(defcustom eask-timestamps nil
+  "Log messages with timestamps."
+  :type 'boolean
+  :group 'eask)
+(defcustom eask-log-level nil
+  "Log messages with level."
+  :type 'boolean
+  :group 'eask)
+(defcustom eask-level-color
+  '((all   . ansi-magenta)
+    (debug . ansi-blue)
+    (log   . ansi-white)
+    (info  . ansi-cyan)
+    (warn  . ansi-yellow)
+    (error . ansi-red))
+  "Alist of each log level's color, in (SYMBOL . ANSI-FUNCTION)."
+  :type 'alist
+  :group 'eask)
+(defmacro eask-with-verbosity (symbol &rest body)
+  "Define verbosity scope.
+
+Execute forms BODY limit by the verbosity level (SYMBOL)."
+  (declare (indent 1) (debug t))
+  `(if (eask--reach-verbosity-p ,symbol) (progn ,@body)
+     (eask--silent ,@body)))
+(defmacro eask-ignore-errors (&rest body)
+  "Execute BODY but ignore all errors."
+  (declare (indent 0) (debug t))
+  `(let ((eask--ignore-error-p t)) ,@body))
+(defconst eask-log-path ".log"
+  "Directory path to create log files.")
+(defcustom eask-log-file nil
+  "Weather to generate log files."
+  :type 'boolean
+  :group 'eask)
+(defmacro eask--log-write-buffer (buffer file)
+  "Write BUFFER to FILE."
+  `(when (get-buffer-create ,buffer)
+     (let ((buffer-file-coding-system 'utf-8))
+       (write-region (with-current-buffer ,buffer (buffer-string)) nil
+                     (expand-file-name ,file log-dir)))))
+(defcustom eask-elapsed-time nil
+  "Log with elapsed time."
+  :type 'boolean
+  :group 'eask)
+(defcustom eask-minimum-reported-time 0.1
+  "Minimal load time that will be reported."
+  :type 'number
+  :group 'eask)
+(defmacro eask-with-progress (msg-start body msg-end)
+  "Progress BODY wrapper with prefix (MSG-START) and suffix (MSG-END) messages."
+  (declare (indent 0) (debug t))
+  `(if eask-elapsed-time
+       (let ((now (current-time)))
+         (ignore-errors (eask-write ,msg-start)) ,body
+         (let ((elapsed (float-time (time-subtract (current-time) now))))
+           (if (< elapsed eask-minimum-reported-time)
+               (ignore-errors (eask-msg ,msg-end))
+             (ignore-errors (eask-write ,msg-end))
+             (eask-msg (ansi-white (format " (%.3fs)" elapsed))))))
+     (ignore-errors (eask-write ,msg-start)) ,body
+     (ignore-errors (eask-msg ,msg-end))))
+(defcustom eask-file-loaded-hook nil
+  "Hook runs after Easkfile is loaded."
+  :type 'hook
+  :group 'eask)
+(defcustom eask-before-command-hook nil
+  "Hook runs before command is executed."
+  :type 'hook
+  :group 'eask)
+(defcustom eask-after-command-hook nil
+  "Hook runs after command is executed."
+  :type 'hook
+  :group 'eask)
+(defcustom eask-on-error-hook nil
+  "Hook runs when error is triggered."
+  :type 'hook
+  :group 'eask)
+(defcustom eask-on-warning-hook nil
+  "Hook runs when warning is triggered."
+  :type 'hook
+  :group 'eask)
+(defcustom eask-dist-path "dist"
+  "Name of default target directory for building packages."
+  :type 'string
+  :group 'eask)
+(require 'ansi-color nil t)
+(require 'package nil t)
+(require 'project nil t)
+(require 'json nil t)
+(require 'nsm nil t)
+(require 'url-vars nil t)
+(require 'cl-lib nil t)
+(require 'files nil t)
+(require 'ls-lisp nil t)
+(require 'pp nil t)
+(require 'rect nil t)
+(require 'subr-x nil t)
+(defun eask--load--adv (fnc &rest args)
+  "Prevent `_prepare.el' loading twice.
+
+Arguments FNC and ARGS are used for advice `:around'."
+  (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
 (defun eask-command ()
   "What's the current command?
 
@@ -181,20 +512,6 @@ the `eask-start' execution.")
             ((file-exists-p script-file)))
       (load script-file nil t)
     (eask-error "Script missing %s" script-file)))
-(defmacro eask-defvc< (version &rest body)
-  "Define scope if Emacs version is below VERSION.
-
-Argument BODY are forms for execution."
-  (declare (indent 1) (debug t))
-  `(when (< emacs-major-version ,version) ,@body))
-(defmacro eask--silent (&rest body)
-  "Execute BODY without message."
-  (declare (indent 0) (debug t))
-  `(let ((inhibit-message t) message-log-max) ,@body))
-(defmacro eask--unsilent (&rest body)
-  "Execute BODY with message."
-  (declare (indent 0) (debug t))
-  `(let (inhibit-message) ,@body))
 (defun eask-2str (obj)
   "Convert OBJ to string."
   (format "%s" obj))
@@ -349,35 +666,6 @@ Argument PKG is the name of the package."
          ;; Wrap version number with color
          (pkg-version (ansi-yellow (eask-package--version-string pkg))))
     (list pkg pkg-string pkg-version)))
-(defmacro eask--pkg-process (pkg &rest body)
-  "Execute BODY with PKG's related variables."
-  (declare (indent 1) (debug t))
-  `(let* ((pkg-info (eask--pkg-transaction-vars ,pkg))
-          (pkg      (nth 0 pkg-info))
-          (name     (nth 1 pkg-info))
-          (version  (nth 2 pkg-info)))
-     ,@body))
-(defmacro eask-with-archives (archives &rest body)
-  "Scope that temporary make ARCHIVES available.
-
-Argument BODY are forms for execution."
-  (declare (indent 1) (debug t))
-  `(let ((package-archives package-archives)
-         (archives (eask-listify ,archives))
-         (added))
-     (dolist (archive archives)
-       (unless (assoc archive package-archives)
-         (setq added t)
-         (eask-with-progress
-           (format "Adding required archives (%s)... " (ansi-yellow archive))
-           (eask-f-source archive)
-           "done ✓")))
-     (when added
-       (eask-with-progress
-         "Refresh archives information... "
-         (eask--silent (eask-pkg-init t))
-         "done ✓"))
-     ,@body))
 (defun eask-package-installable-p (pkg)
   "Return non-nil if package (PKG) is installable."
   (assq (eask-intern pkg) package-archive-contents))
@@ -484,12 +772,6 @@ full detials."
   "Return package description file if exists."
   (let ((pkg-el (package--description-file default-directory)))
     (when (file-readable-p pkg-el) pkg-el)))
-(defconst eask-has-colors (getenv "EASK_HASCOLORS")
-  "Return non-nil if terminal support colors.")
-(defconst eask-homedir (getenv "EASK_HOMEDIR")
-  "Eask temporary storage.")
-(defconst eask-invocation (getenv "EASK_INVOCATION")
-  "Eask invocation program.")
 (defun eask--str2num (str)
   "Convert string (STR) to number."
   (ignore-errors (string-to-number str)))
@@ -615,30 +897,6 @@ other scripts internally.  See function `eask-call'.")
 (defun eask--form-options (options)
   "Add --eask to all OPTIONS."
   (mapcar (lambda (elm) (concat "--eask" elm)) options))
-(defconst eask--option-switches
-  (eask--form-options
-   '("-g" "-c" "-a" "-q" "-f" "--dev"
-     "--debug" "--strict"
-     "--allow-error"
-     "--insecure"
-     "--timestamps" "--log-level"
-     "--log-file"
-     "--elapsed-time"
-     "--no-color"
-     "--clean"
-     "--json"
-     "--number"))
-  "List of boolean type options.")
-(defconst eask--option-args
-  (eask--form-options
-   '("--output"
-     "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
-     "--verbose" "--silent"
-     "--depth" "--dest" "--from"))
-  "List of arguments (number/string) type options.")
-(defconst eask--command-list
-  (append eask--option-switches eask--option-args)
-  "List of commands to accept, so we can avoid unknown option error.")
 (defun eask-self-command-p (arg)
   "Return non-nil if ARG is known internal command."
   (member arg eask--command-list))
@@ -662,37 +920,6 @@ Simply remove `--eask' for each option, like `--eask--strict' to `--strict'."
             (setq skip-next t)
           (push arg args))))
     (reverse args)))
-(defmacro eask--batch-mode (&rest body)
-  "Execute forms BODY in batch-mode."
-  (declare (indent 0) (debug t))
-  `(let ((argv (eask-args))
-         load-file-name buffer-file-name)
-     ,@body))
-(defmacro eask--setup-env (&rest body)
-  "Execute BODY with workspace setup."
-  (declare (indent 0) (debug t))
-  `(eask--batch-mode
-     (let (;; XXX: this will make command `info', `files' work as expected;
-           ;; but the relative paths file spec will be lost...
-           ;;
-           ;; So commands like `load' would NOT work!
-           (default-directory (cond ((eask-global-p) eask-homedir)
-                                    ((eask-config-p) user-emacs-directory)
-                                    (t default-directory)))
-           (alist))
-       (dolist (cmd eask--command-list)
-         (push (cons cmd (lambda (&rest _))) alist))
-       (setq command-switch-alist (append command-switch-alist alist))
-       ,@body)))
-(defconst eask-file-keywords
-  '("package" "website-url" "keywords"
-    "author" "license"
-    "package-file" "package-descriptor" "files"
-    "script"
-    "source" "source-priority"
-    "depends-on" "development"
-    "exec-paths" "load-paths")
-  "List of Eask file's DSL keywords.")
 (defun eask--loop-file-keywords (func)
   "Loop through Eask file keywords for environment replacement.
 
@@ -705,24 +932,6 @@ Internal used for function `eask--alias-env'."
           (api (intern (concat "eask-f-" keyword)))    ; existing function
           (old (intern (concat "eask--f-" keyword))))  ; variable that holds function pointer
       (funcall func keyword-sym api old))))
-(defmacro eask--alias-env (&rest body)
-  "Replace all Eask file functions temporary; this is only used when loading
-Eask file in the workspace.
-
-Argument BODY are forms for execution."
-  (declare (indent 0) (debug t))
-  `(let (result)
-     ;; XXX: Magic here is we replace all keyword functions with `eask-xxx'...
-     (eask--loop-file-keywords
-      (lambda (keyword api old)
-        (defalias old (symbol-function keyword))
-        (defalias keyword (symbol-function api))))
-     (setq result (progn ,@body))
-     ;; XXX: after loading Eask file, we revert those functions back to normal!
-     (eask--loop-file-keywords
-      (lambda (keyword _api old)
-        (defalias keyword (symbol-function old))))
-     result))
 (defvar eask-file nil "The Eask file's filename.")
 (defvar eask-file-root nil "The Eask file's directory.")
 (defun eask-root-del (filename)
@@ -785,95 +994,9 @@ This uses function `locate-dominating-file' to look up directory tree."
   (when-let* ((files (eask--find-files start-path))
               (file (car files)))
     (eask-file-load file)))
-(defmacro eask--with-hooks (&rest body)
-  "Execute BODY with before/after hooks."
-  (declare (indent 0) (debug t))
-  `(let* ((command (eask-command))
-          (before  (concat "eask-before-" command "-hook"))
-          (after   (concat "eask-after-" command "-hook")))
-     (run-hooks 'eask-before-command-hook)
-     (run-hooks (intern before))
-     ,@body
-     (run-hooks (intern after))
-     (run-hooks 'eask-after-command-hook)))
-(defmacro eask--setup-home (dir &rest body)
-  "Set up config directory in DIR, then execute BODY."
-  (declare (indent 1) (debug t))
-  `(let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
-          (package-user-dir (expand-file-name "elpa" user-emacs-directory))
-          (early-init-file (locate-user-emacs-file "early-init.el"))
-          (user-init-file (locate-user-emacs-file "init.el"))
-          (custom-file (locate-user-emacs-file "custom.el")))
-     ,@body))
-(defmacro eask-start (&rest body)
-  "Execute BODY with workspace setup."
-  (declare (indent 0) (debug t))
-  `(unless eask-loading-file-p
-     (if eask--initialized-p (progn ,@body)
-       (setq eask--initialized-p t)
-       (eask--setup-env
-         (eask--handle-global-options)
-         (cond
-          ((or (eask-global-p) (eask-special-p))  ; Commands without Eask-file needed
-           (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
-             (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
-               ;; We accept Eask-file in `global' scope, but it shouldn't be used
-               ;; for the sandbox.
-               (eask-with-verbosity 'debug
-                 (if (eask-file-try-load "./")
-                     (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
-                   (eask-msg "✗ Loading global Eask file... missing!"))
-                 (message ""))
-               (package-activate-all)
-               (ignore-errors (make-directory package-user-dir t))
-               (eask--with-hooks ,@body))))
-          ((eask-config-p)
-           (let ((inhibit-config (eask-quick-p)))
-             ;; We accept Eask-file in `config' scope, but it shouldn't be used
-             ;; for the sandbox.
-             (eask-with-verbosity 'debug
-               (if (eask-file-try-load "./")
-                   (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
-                 (eask-msg "✗ Loading config Eask file... missing!"))
-               (message ""))
-             (package-activate-all)
-             (eask-with-progress
-               (ansi-green "Loading your configuration... ")
-               (eask-with-verbosity 'all
-                 (unless inhibit-config
-                   (load (locate-user-emacs-file "early-init.el") t)
-                   (load (locate-user-emacs-file "../.emacs") t)
-                   (load (locate-user-emacs-file "init.el") t)))
-               (ansi-green (if inhibit-config "skipped ✗" "done ✓")))
-             (eask--with-hooks ,@body)))
-          (t
-           (eask--setup-home nil  ; `nil' is the `default-directory'
-             (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
-               (eask-with-verbosity 'debug
-                 (if (eask-file-try-load "./")
-                     (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
-                   (eask-msg "✗ Loading Eask file... missing!"))
-                 (message ""))
-               (if (not eask-file)
-                   (eask-help "core/init")
-                 (package-activate-all)
-                 (ignore-errors (make-directory package-user-dir t))
-                 (eask--silent (eask-setup-paths))
-                 (eask--with-hooks ,@body))))))))))
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
-(defconst eask-source-mapping
-  `((gnu          . "https://elpa.gnu.org/packages/")
-    (nongnu       . "https://elpa.nongnu.org/nongnu/")
-    (celpa        . "https://celpa.conao3.com/packages/")
-    (jcs-elpa     . "https://jcs-emacs.github.io/jcs-elpa/packages/")
-    (marmalade    . "https://marmalade-repo.org/packages/")
-    (melpa        . "https://melpa.org/packages/")
-    (melpa-stable . "https://stable.melpa.org/packages/")
-    (org          . "https://orgmode.org/elpa/")
-    (shmelpa      . "https://shmelpa.commandlinesystems.com/packages/"))
-  "Mapping of source name and url.")
 (defvar eask-package            nil)
 (defvar eask-package-desc       nil)  ; package descriptor
 (defvar eask-package-descriptor nil)
@@ -887,37 +1010,6 @@ This uses function `locate-dominating-file' to look up directory tree."
 (defvar eask-depends-on-emacs   nil)
 (defvar eask-depends-on         nil)
 (defvar eask-depends-on-dev     nil)
-(defmacro eask--save-eask-file-state (&rest body)
-  "Execute BODY without touching the Eask-file global variables."
-  (declare (indent 0) (debug t))
-  `(let (package-archives
-         package-archive-priorities
-         eask-file
-         eask-file-root
-         eask-package
-         eask-package-desc
-         eask-website-url
-         eask-keywords
-         eask-authors
-         eask-licenses
-         eask-package-file
-         eask-package-descriptor
-         eask-files
-         eask-scripts
-         eask-depends-on-emacs
-         eask-depends-on
-         eask-depends-on-dev)
-     ,@body))
-(defmacro eask--save-load-eask-file (file success &rest error)
-  "Load an Eask FILE and execute forms SUCCESS or ERROR."
-  (declare (indent 2) (debug t))
-  `(eask--save-eask-file-state
-     (eask--setup-env
-       (eask--alias-env
-         (if (let ((default-directory (file-name-directory ,file)))
-               (ignore-errors (eask-file-load ,file)))
-             (progn ,success)
-           ,@error)))))
 (defun eask-package--get (key)
   "Return package info by KEY."
   (plist-get eask-package key))
@@ -1115,30 +1207,6 @@ ELPA)."
 (defun eask-f-load-paths (&rest dirs)
   "Add all DIRS to to the variable `load-path'."
   (dolist (dir dirs) (add-to-list 'load-path (expand-file-name dir) t)))
-(defcustom eask-verbosity 3
-  "Log level for all messages; 4 means trace most anything, 0 means nothing.
-
-Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
-  :type 'integer
-  :group 'eask)
-(defcustom eask-timestamps nil
-  "Log messages with timestamps."
-  :type 'boolean
-  :group 'eask)
-(defcustom eask-log-level nil
-  "Log messages with level."
-  :type 'boolean
-  :group 'eask)
-(defcustom eask-level-color
-  '((all   . ansi-magenta)
-    (debug . ansi-blue)
-    (log   . ansi-white)
-    (info  . ansi-cyan)
-    (warn  . ansi-yellow)
-    (error . ansi-red))
-  "Alist of each log level's color, in (SYMBOL . ANSI-FUNCTION)."
-  :type 'alist
-  :group 'eask)
 (defun eask--verb2lvl (symbol)
   "Convert verbosity SYMBOL to level."
   (cl-case symbol
@@ -1152,13 +1220,6 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
 (defun eask--reach-verbosity-p (symbol)
   "Return t if SYMBOL reach verbosity (should be printed)."
   (>= eask-verbosity (eask--verb2lvl symbol)))
-(defmacro eask-with-verbosity (symbol &rest body)
-  "Define verbosity scope.
-
-Execute forms BODY limit by the verbosity level (SYMBOL)."
-  (declare (indent 1) (debug t))
-  `(if (eask--reach-verbosity-p ,symbol) (progn ,@body)
-     (eask--silent ,@body)))
 (defun eask--ansi (symbol string)
   "Paint STRING with color defined by log level (SYMBOL)."
   (if-let ((ansi-function (cdr (assq symbol eask-level-color))))
@@ -1246,10 +1307,6 @@ Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
   (apply (if (eask-strict-p) #'eask-error #'eask-warn) args))
 (defvar eask--ignore-error-p nil
   "Don't trigger error when this is non-nil.")
-(defmacro eask-ignore-errors (&rest body)
-  "Execute BODY but ignore all errors."
-  (declare (indent 0) (debug t))
-  `(let ((eask--ignore-error-p t)) ,@body))
 (defun eask--exit (&rest _) "Send exit code." (kill-emacs 1))
 (defun eask--trigger-error ()
   "Trigger error event."
@@ -1275,18 +1332,6 @@ Arguments FNC and ARGS are used for advice `:around'."
     (eask--unsilent (eask-msg "%s" msg))
     (run-hook-with-args 'eask-on-warning-hook 'warn msg))
   (eask--silent (apply fnc args)))
-(defconst eask-log-path ".log"
-  "Directory path to create log files.")
-(defcustom eask-log-file nil
-  "Weather to generate log files."
-  :type 'boolean
-  :group 'eask)
-(defmacro eask--log-write-buffer (buffer file)
-  "Write BUFFER to FILE."
-  `(when (get-buffer-create ,buffer)
-     (let ((buffer-file-coding-system 'utf-8))
-       (write-region (with-current-buffer ,buffer (buffer-string)) nil
-                     (expand-file-name ,file log-dir)))))
 (defun eask-guess-package-name ()
   "Return the possible package name."
   (or (eask-package-name)
@@ -1331,27 +1376,6 @@ Arguments FNC and ARGS are used for advice `:around'."
     (dolist (filename (eask-package-files))
       (cl-incf size (file-attribute-size (file-attributes filename))))
     (string-trim (ls-lisp-format-file-size size t))))
-(defcustom eask-elapsed-time nil
-  "Log with elapsed time."
-  :type 'boolean
-  :group 'eask)
-(defcustom eask-minimum-reported-time 0.1
-  "Minimal load time that will be reported."
-  :type 'number
-  :group 'eask)
-(defmacro eask-with-progress (msg-start body msg-end)
-  "Progress BODY wrapper with prefix (MSG-START) and suffix (MSG-END) messages."
-  (declare (indent 0) (debug t))
-  `(if eask-elapsed-time
-       (let ((now (current-time)))
-         (ignore-errors (eask-write ,msg-start)) ,body
-         (let ((elapsed (float-time (time-subtract (current-time) now))))
-           (if (< elapsed eask-minimum-reported-time)
-               (ignore-errors (eask-msg ,msg-end))
-             (ignore-errors (eask-write ,msg-end))
-             (eask-msg (ansi-white (format " (%.3fs)" elapsed))))))
-     (ignore-errors (eask-write ,msg-start)) ,body
-     (ignore-errors (eask-msg ,msg-end))))
 (defun eask-progress-seq (prefix sequence suffix func)
   "Shorthand to progress SEQUENCE of task.
 
@@ -1501,30 +1525,6 @@ variable we use to test validation."
     (eask-error "%s must be a string" name))
   (when (string-empty-p var)
     (eask-warn "%s cannot be an empty string" name)))
-(defcustom eask-file-loaded-hook nil
-  "Hook runs after Easkfile is loaded."
-  :type 'hook
-  :group 'eask)
-(defcustom eask-before-command-hook nil
-  "Hook runs before command is executed."
-  :type 'hook
-  :group 'eask)
-(defcustom eask-after-command-hook nil
-  "Hook runs after command is executed."
-  :type 'hook
-  :group 'eask)
-(defcustom eask-on-error-hook nil
-  "Hook runs when error is triggered."
-  :type 'hook
-  :group 'eask)
-(defcustom eask-on-warning-hook nil
-  "Hook runs when warning is triggered."
-  :type 'hook
-  :group 'eask)
-(defcustom eask-dist-path "dist"
-  "Name of default target directory for building packages."
-  :type 'string
-  :group 'eask)
 (defvar eask-lint-first-file-p nil
   "Set the flag to t after the first file is linted.")
 (defun eask-lint-first-newline ()
@@ -1633,14 +1633,8 @@ Argument LEVEL and MSG are data from the debug log signal."
       (write-region content nil (eask-output)))))
 
 ;; ~/lisp/clean/all.el
-(defvar eask-no-cleaning-operation-p nil
-  "Set to non-nil if there is no cleaning operation done.")
 (defconst eask--clean-tasks-total 6
   "Count cleaning task.")
-(defvar eask--clean-tasks-count 0
-  "Count cleaning task.")
-(defvar eask--clean-tasks-cleaned 0
-  "Total cleaned tasks.")
 (defmacro eask--clean-section (title &rest body)
   "Print clean up TITLE and execute BODY."
   (declare (indent 1))
@@ -1654,6 +1648,12 @@ Argument LEVEL and MSG are data from the debug log signal."
            "skipped ✗"
          (cl-incf eask--clean-tasks-cleaned)
          "done ✓"))))
+(defvar eask-no-cleaning-operation-p nil
+  "Set to non-nil if there is no cleaning operation done.")
+(defvar eask--clean-tasks-count 0
+  "Count cleaning task.")
+(defvar eask--clean-tasks-cleaned 0
+  "Total cleaned tasks.")
 
 ;; ~/lisp/clean/autoloads.el
 
@@ -1913,6 +1913,7 @@ For argument FILE, please see function `package-install-file' for the details."
             (delete-directory temp-dir t)))))))
 
 ;; ~/lisp/core/keywords.el
+(require 'finder nil t)
 
 ;; ~/lisp/core/list.el
 (defvar eask--list-pkg-name-offset nil)
@@ -2454,6 +2455,7 @@ be assigned to variable `checkdoc-create-error-function'."
       (eask-log "No mismatch indentation found"))))
 
 ;; ~/lisp/lint/keywords.el
+(require 'finder nil t)
 (defun eask--defined-keywords (keywords)
   "Return t if KEYWORDS are defined correctly."
   (let ((available-keywords (mapcar #'car finder-known-keywords))
@@ -2572,6 +2574,7 @@ be assigned to variable `checkdoc-create-error-function'."
 ;; ~/lisp/test/ert-runner.el
 
 ;; ~/lisp/test/ert.el
+(require 'ert nil t)
 (defvar eask--message-loop nil
   "Prevent inifinite recursive message function.")
 (defun eask--ert-message (fnc &rest args)
