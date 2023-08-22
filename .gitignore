@@ -12,3 +12,6 @@ dist/
 # packaging
 *-autoloads.el
 *-pkg.el
+
+# local test
+/_test
