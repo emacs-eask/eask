@@ -63,33 +63,6 @@
 (declare-function gitignore-templates-names "ext:gitignore-templates.el")
 
 ;;
-;; (@* "Internal" )
-;;
-(defvar eask--package-prefix)
-(defvar eask-depends-on-recipe-p)
-(defvar eask-depends-on-recipe-p)
-
-(defvar eask-package           )
-(defvar eask-package-desc      )  ; package descriptor
-(defvar eask-package-descriptor)
-(defvar eask-website-url       )
-(defvar eask-keywords          )
-(defvar eask-authors           )
-(defvar eask-licenses          )
-(defvar eask-package-file      )
-(defvar eask-files             )
-(defvar eask-scripts           )
-(defvar eask-depends-on-emacs  )
-(defvar eask-depends-on        )
-(defvar eask-depends-on-dev    )
-
-(defvar eask-verbosity)
-(defvar eask-timestamps)
-(defvar eask-log-level)
-(defvar eask-log-file)
-(defvar eask-elapsed-time)
-
-;;
 ;; (@* "Source" )
 ;;
 { SOURCE }
