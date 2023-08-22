@@ -46,13 +46,13 @@
                       (let-kill-line))
                      ;; skip these
                      ((or (string-prefix-p "(defclass " line)
-                          (string-prefix-p "(defun " line))
+                          (string-prefix-p "(defun " line)
+                          (string-prefix-p "(defconst " line))
                       (forward-sexp)
                       (forward-line 1)
                       (beginning-of-line))
                      ;; Move macro to the top, avoid macro defined too late error.
-                     ((or (string-prefix-p "(defconst " line)
-                          (string-prefix-p "(defvar " line)
+                     ((or (string-prefix-p "(defvar " line)
                           (string-prefix-p "(defcustom " line)
                           (string-prefix-p "(defmacro " line))
                       (forward-sexp)
