@@ -26,6 +26,20 @@
 
 ;;; Code:
 
+(require 'ansi-color)
+(require 'package)
+(require 'project)
+(require 'json)
+(require 'nsm)
+(require 'url-vars)
+
+(require 'cl-lib)
+(require 'files)
+(require 'ls-lisp)
+(require 'pp)
+(require 'rect)
+(require 'subr-x)
+
 ;;
 ;; (@* "Externals" )
 ;;
@@ -59,6 +73,33 @@
 (declare-function elint-get-log-buffer "ext:elint.el")
 (declare-function relint-buffer "ext:relint.el")
 (declare-function gitignore-templates-names "ext:gitignore-templates.el")
+
+;;
+;; (@* "Signatures" )
+;;
+(defvar eask--package-prefix)
+(defvar eask-depends-on-recipe-p)
+(defvar eask-depends-on-recipe-p)
+
+(defvar eask-package           )
+(defvar eask-package-desc      )  ; package descriptor
+(defvar eask-package-descriptor)
+(defvar eask-website-url       )
+(defvar eask-keywords          )
+(defvar eask-authors           )
+(defvar eask-licenses          )
+(defvar eask-package-file      )
+(defvar eask-files             )
+(defvar eask-scripts           )
+(defvar eask-depends-on-emacs  )
+(defvar eask-depends-on        )
+(defvar eask-depends-on-dev    )
+
+(defvar eask-verbosity)
+(defvar eask-timestamps)
+(defvar eask-log-level)
+(defvar eask-log-file)
+(defvar eask-elapsed-time)
 
 ;;
 ;; (@* "Source" )
