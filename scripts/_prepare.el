@@ -16,6 +16,15 @@
   "Locate the project by enviornment."
   (concat (if in-ci "./" "../") path))
 
+(defun s-count-matches (regexp s &optional start end)
+  "..."
+  (declare (side-effect-free t))
+  (save-match-data
+    (with-temp-buffer
+      (insert s)
+      (goto-char (point-min))
+      (count-matches regexp (or start 1) (or end (point-max))))))
+
 (defun let-kill-line ()
   "Kill current line."
   (goto-char (line-beginning-position)) (kill-line 1))
