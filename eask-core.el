@@ -194,16 +194,17 @@ Argument BODY are forms for execution."
        (eask--setup-env
          (eask--handle-global-options)
          (cond
-          ((or (eask-global-p) (eask-special-p))  ; Commands without Eask-file needed
+          ((or (eask-global-p) (eask-special-p))  ; Commands without Eask-file needed!
            (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
                ;; We accept Eask-file in `global' scope, but it shouldn't be used
                ;; for the sandbox.
                (eask-with-verbosity 'debug
-                 (if (eask-file-try-load "./")
-                     (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
-                   (eask-msg "✗ Loading global Eask file... missing!"))
-                 (message ""))
+                 (eask-ignore-errors  ; Again, without Eask-file needed!
+                   (if (eask-file-try-load "./")
+                       (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
+                     (eask-msg "✗ Loading global Eask file... missing!")))
+                 (eask-msg ""))
                (package-activate-all)
                (ignore-errors (make-directory package-user-dir t))
                (eask--with-hooks ,@body))))
@@ -215,7 +216,7 @@ Argument BODY are forms for execution."
                (if (eask-file-try-load "./")
                    (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
                  (eask-msg "✗ Loading config Eask file... missing!"))
-               (message ""))
+               (eask-msg ""))
              (package-activate-all)
              (eask-with-progress
                (ansi-green "Loading your configuration... ")
@@ -318,10 +319,20 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
      (eask--silent ,@body)))
 (defvar eask--ignore-error-p nil
   "Don't trigger error when this is non-nil.")
+(defvar eask-inhibit-error-message nil
+  "Non-nil to stop the error message.")
 (defmacro eask-ignore-errors (&rest body)
-  "Execute BODY but ignore all errors."
+  "Execute BODY without killing the process."
   (declare (indent 0) (debug t))
   `(let ((eask--ignore-error-p t)) ,@body))
+(defmacro eask--silent-error (&rest body)
+  "Execute BODY and inhibit all error messages."
+  (declare (indent 0) (debug t))
+  `(let ((eask-inhibit-error-message t)) ,@body))
+(defmacro eask-ignore-errors-silent (&rest body)
+  "Execute BODY by completely ignore errors."
+  (declare (indent 0) (debug t))
+  `(eask-ignore-errors (eask--silent-error ,@body)))
 (defcustom eask-log-file nil
   "Weather to generate log files."
   :type 'boolean
@@ -1294,7 +1305,7 @@ Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
 
 Arguments FNC and ARGS are used for advice `:around'."
   (let ((msg (eask--ansi 'error (apply #'format-message args))))
-    (unless eask--ignore-error-p
+    (unless eask-inhibit-error-message
       (eask--unsilent (eask-msg "%s" msg)))
     (run-hook-with-args 'eask-on-error-hook 'error msg)
     (eask--trigger-error))
@@ -1304,7 +1315,7 @@ Arguments FNC and ARGS are used for advice `:around'."
 
 Arguments FNC and ARGS are used for advice `:around'."
   (let ((msg (eask--ansi 'warn (apply #'format-message args))))
-    (unless eask--ignore-error-p
+    (unless eask-inhibit-error-message
       (eask--unsilent (eask-msg "%s" msg)))
     (run-hook-with-args 'eask-on-warning-hook 'warn msg))
   (eask--silent (apply fnc args)))
@@ -1580,8 +1591,9 @@ Argument LEVEL and MSG are data from the debug log signal."
   (let (checked-files content)
     ;; Linting
     (dolist (file files)
-      (eask--save-load-eask-file file
-          (push file checked-files)))
+      (eask--silent-error
+        (eask--save-load-eask-file file
+            (push file checked-files))))
 
     ;; Print result
     (eask-msg "")
@@ -2242,12 +2254,55 @@ Argument VERSION is a string represent the version number of this package."
      nil pkg-file)))
 
 ;; ~/lisp/init/cask.el
+(defvar eask--cask-contents nil
+  "Store Cask-file contents.")
+(defun eask--cask-filter-contents (name &optional contents)
+  "Filter directives by NAME.
+
+Optional argument CONTENTS is used for nested directives.  e.g. development."
+  (cl-remove-if-not (lambda (prop)
+                      (eq (car prop) name))
+                    (or contents eask--cask-contents)))
+(defun eask--cask-package-name ()
+  "Return package name from Cask-file."
+  (nth 0 (alist-get 'package eask--cask-contents)))
+(defun eask--cask-package-version ()
+  "Return package version from Cask-file."
+  (nth 1 (alist-get 'package eask--cask-contents)))
+(defun eask--cask-package-description ()
+  "Return package description from Cask-file."
+  (nth 2 (alist-get 'package eask--cask-contents)))
+(defun eask--cask-package-file ()
+  "Return package file from Cask-file."
+  (car (alist-get 'package-file eask--cask-contents)))
+(defun eask--cask-sources ()
+  "Return sources from Cask-file."
+  (eask--cask-filter-contents 'source))
+(defun eask--cask-reqs ()
+  "Return dependencies from Cask-file."
+  (eask--cask-filter-contents 'depends-on))
+(defun eask--cask-reqs-dev ()
+  "Return development dependencies file from Cask-file."
+  (let ((dev-scopes (eask--cask-filter-contents 'development))
+        (deps))
+    (dolist (dev-scope dev-scopes)
+      (setq deps (append deps (eask--cask-filter-contents 'depends-on (cdr dev-scope)))))
+    deps))
+(defun eask--cask-emacs-version ()
+  "Return Emacs version from Cask-file."
+  (let ((reqs (eask--cask-reqs)))
+    (cl-some (lambda (req)
+               (message "? %s %s" (equal (cadr req) 'emacs) (cadr req))
+               (when (string= (cadr req) "emacs")
+                 (caddr req)))
+             reqs)))
 (defun eask--convert-cask (filename)
   "Convert Cask FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
          (file (file-name-nondirectory (eask-root-del filename)))
          (new-file (eask-s-replace "Cask" "Eask" file))
          (new-filename (expand-file-name new-file))
+         (eask--cask-contents (cask--read filename))  ; Read it!
          (converted))
     (eask-with-progress
       (format "Converting file `%s` to `%s`... " file new-file)
@@ -2258,12 +2313,69 @@ Argument VERSION is a string represent the version number of this package."
                (eask-debug "✗ The file `%s` already presented" new-file))
               (t
                (with-current-buffer (find-file new-filename)
-                 (insert-file-contents file)
                  (goto-char (point-min))
-                 (while (re-search-forward "(source " nil t)
-                   (forward-word 1)
-                   (forward-word -1)  ; make sure infront of the word
-                   (insert "'"))      ; make it symbol
+
+                 (eask--unsilent (eask-msg "\n"))
+
+                 (let* ((project-name
+                         (or (eask--cask-package-name)
+                             (file-name-nondirectory (directory-file-name default-directory))))
+                        (package-name
+                         (or (eask--cask-package-name)
+                             (read-string (format "package name: (%s) " project-name) nil nil project-name)))
+                        (version (or (eask--cask-package-version)
+                                     (read-string "version: (1.0.0) " nil nil "1.0.0")))
+                        (description (or (eask--cask-package-description)
+                                         (read-string "description: ")))
+                        (guess-entry-point (format "%s.el" project-name))
+                        (entry-point
+                         (or (eask--cask-package-file)
+                             (read-string (format "entry point: (%s) " guess-entry-point)
+                                          nil nil guess-entry-point)))
+                        (emacs-version
+                         (or (eask--cask-emacs-version)
+                             (read-string "emacs version: (26.1) " nil nil "26.1")))
+                        (website (read-string "website: "))
+                        (keywords (read-string "keywords: "))
+                        (keywords (split-string keywords "[, ]"))
+                        (keywords (string-join keywords "\" \""))
+                        (content (format
+                                  "(package \"%s\"
+         \"%s\"
+         \"%s\")
+
+(website-url \"%s\")
+(keywords \"%s\")
+
+(package-file \"%s\")
+
+(script \"test\" \"echo \\\"Error: no test specified\\\" && exit 1\")
+"
+                                  package-name version description website keywords
+                                  entry-point)))
+                   (insert content)
+
+                   (insert "\n")
+
+                   (dolist (source (eask--cask-sources))
+                     (insert "(source '" (eask-2str (cadr source)) ")\n"))
+
+                   (insert "\n")
+
+                   (when-let ((pkgs (eask--cask-reqs)))
+                     (dolist (pkg pkgs)
+                       (let ((val (mapconcat #'eask-2str (cdr pkg) "\" \"")))
+                         (insert "(depends-on \"" val "\")\n"))))
+
+                   (insert "\n")
+
+                   (when-let ((pkgs (eask--cask-reqs-dev)))
+                     (insert "(development\n")
+                     (dolist (pkg pkgs)
+                       (let ((val (mapconcat #'eask-2str (cdr pkg) "\" \"")))
+                         (insert " (depends-on \"" val "\")\n")))
+                     (insert " )\n")))
+
                  (save-buffer))
                (setq converted t))))
       (if converted "done ✓" "skipped ✗"))
@@ -2386,7 +2498,7 @@ If no found the Keg file, returns nil."
          (new-filename (expand-file-name new-file))
          (pkg-desc (with-temp-buffer
                      (insert-file-contents filename)
-                     (eask-ignore-errors (package-buffer-info))))  ; Read it!
+                     (eask-ignore-errors-silent (package-buffer-info))))  ; Read it!
          (converted))
     (eask-with-progress
       (format "Converting file `%s` to `%s`... " file new-file)
