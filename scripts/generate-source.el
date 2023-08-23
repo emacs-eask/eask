@@ -53,6 +53,7 @@
                       (beginning-of-line))
                      ;; Move macro to the top, avoid macro defined too late error.
                      ((or (string-prefix-p "(defvar " line)
+                          (string-prefix-p "(declare-function " line)
                           (string-prefix-p "(defcustom " line)
                           (string-prefix-p "(defmacro " line))
                       (forward-sexp)
