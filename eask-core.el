@@ -2177,6 +2177,7 @@ Argument VERSION is a string represent the version number of this package."
 ;; ~/lisp/generate/autoloads.el
 
 ;; ~/lisp/generate/ignore.el
+(declare-function gitignore-templates-names "ext:license-templates.el")
 (defun eask--print-ignore-menu ()
   "Print all available ignore."
   (eask-msg "available via `eask generate ignore`")
@@ -2190,6 +2191,7 @@ Argument VERSION is a string represent the version number of this package."
 
 ;; ~/lisp/generate/license.el
 (defvar license-templates--data)
+(declare-function license-templates-keys "ext:license-templates.el")
 (defun eask--print-license-menu ()
   "Print all available license."
   (eask-msg "available via `eask generate license`")
@@ -2229,10 +2231,10 @@ Argument VERSION is a string represent the version number of this package."
      nil pkg-file)))
 
 ;; ~/lisp/init/cask.el
-(defvar -flatten)
 (declare-function ansi-green "ext:ansi.el")
 (declare-function ansi-yellow "ext:ansi.el")
 (declare-function ansi-white "ext:ansi.el")
+(declare-function -flatten "ext:dash.el")
 (declare-function cask--read "ext:cask.el")
 (defvar eask--cask-contents nil
   "Store Cask-file contents.")
@@ -2682,6 +2684,7 @@ be assigned to variable `checkdoc-create-error-function'."
 (defvar elsa-global-state)
 (declare-function elsa-message-format "ext:elsa.el")
 (declare-function elsa-analyse-file "ext:elsa.el")
+(declare-function --each "ext:dash.el")
 (defconst eask--elsa-version nil
   "Elsa version.")
 (defun eask--elsa-analyse-file (filename)
@@ -2796,6 +2799,7 @@ be assigned to variable `checkdoc-create-error-function'."
                (eask--sinr names "" "s"))))
 
 ;; ~/lisp/lint/package.el
+(declare-function package-lint-current-buffer "ext:package-lint.el")
 (defconst eask--package-lint-version nil
   "`package-lint' version.")
 (defun eask--package-lint-file (filename)
@@ -2810,6 +2814,7 @@ be assigned to variable `checkdoc-create-error-function'."
   (eask-print-log-buffer "*Package-Lint*"))
 
 ;; ~/lisp/lint/regexps.el
+(declare-function relint-buffer "ext:package-lint.el")
 (defconst eask--relint-version nil
   "`relint' version.")
 (defun eask--relint-file (filename)
