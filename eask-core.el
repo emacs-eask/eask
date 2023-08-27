@@ -2056,7 +2056,7 @@ Argument VERSION is a string represent the version number of this package."
 (defun eask--environment-name ()
   "Get the working environment name."
   (cond ((eask-global-p) "global (~/.eask/)")
-        ((eask-config-p) "configuration (~/.emacs.d/)")
+        ((eask-config-p) (format "configuration (%s)" user-emacs-directory))
         (t               "development (./)")))
 (defun eask--print-title (title)
   "Print section TITLE."
@@ -2685,6 +2685,7 @@ be assigned to variable `checkdoc-create-error-function'."
 (declare-function elsa-message-format "ext:elsa.el")
 (declare-function elsa-analyse-file "ext:elsa.el")
 (declare-function --each "ext:dash.el")
+(require 'dash nil t)
 (defconst eask--elsa-version nil
   "Elsa version.")
 (defun eask--elsa-analyse-file (filename)
