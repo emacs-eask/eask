@@ -1,5 +1,5 @@
 (package "eask"
-         "0.1.0"
+         "0.8.2"
          "Core Eask APIs, for Eask CLI development")
 
 (website-url "https://github.com/emacs-eask/eask")
@@ -17,5 +17,6 @@
 (source "jcs-elpa")
 
 (depends-on "emacs" "26.1")
+(depends-on "dash")
 
 (setq network-security-level 'low)  ; see https://github.com/jcs090218/setup-emacs-windows/issues/156#issuecomment-932956432
