@@ -2933,6 +2933,6 @@ Arguments FNC and ARGS are used for advice `:around'."
 (provide 'eask-core)
 ;; Local Variables:
 ;; coding: utf-8
-;; no-byte-compile: t
+;; no-byte-compile: nil
 ;; End:
 ;;; eask-core.el ends here
