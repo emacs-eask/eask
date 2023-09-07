@@ -2340,11 +2340,20 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
     (dolist (dev-scope dev-scopes)
       (setq deps (append deps (eask--cask-filter-contents 'depends-on (cdr dev-scope)))))
     deps))
+(defun eask--cask-no-reqs ()
+  "Return non-nil if no dependencies from Cask-file."
+  (and (not (eask--cask-reqs-no-emacs))
+       (not (eask--cask-reqs-dev))))
+(defun eask--cask-reqs-no-emacs ()
+  "Return dependencies from Cask-file but exclude Emacs."
+  (cl-remove-if (lambda (req)
+                  (when (string= (cadr req) "emacs")
+                    (caddr req)))
+                (eask--cask-reqs)))
 (defun eask--cask-emacs-version ()
   "Return Emacs version from Cask-file."
   (let ((reqs (eask--cask-reqs)))
     (cl-some (lambda (req)
-               (message "? %s %s" (equal (cadr req) 'emacs) (cadr req))
                (when (string= (cadr req) "emacs")
                  (caddr req)))
              reqs)))
@@ -2413,30 +2422,30 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                        (insert "\n \"" file "\""))
                      (insert ")\n"))
 
-                   (insert "\n")
-
                    (when-let ((pkg-desc (eask--cask-package-descriptor)))
+                     (insert "\n")
                      (insert "(package-descriptor \"" (eask-2str pkg-desc) "\")\n"))
 
                    (insert "\n")
-
-                   (insert "(script \"test\" \"echo \\\"Error: no test specified\\\" && exit 1\")")
-
-                   (insert "\n")
+                   (insert "(script \"test\" \"echo \\\"Error: no test specified\\\" && exit 1\")\n")
 
                    (dolist (source (eask--cask-sources))
+                     (insert "\n")
                      (insert "(source '" (eask-2str (cadr source)) ")\n"))
 
                    (insert "\n")
+                   (insert "(depends-on \"emacs\" \"" emacs-version "\")")
+                   (when (eask--cask-no-reqs)
+                     (insert "\n"))  ; Make sure end line exists!
 
-                   (when-let ((pkgs (eask--cask-reqs)))
+                   (when-let ((pkgs (eask--cask-reqs-no-emacs)))
+                     (insert "\n")
                      (dolist (pkg pkgs)
                        (let ((val (mapconcat #'eask-2str (cdr pkg) "\" \"")))
                          (insert "(depends-on \"" val "\")\n"))))
 
-                   (insert "\n")
-
                    (when-let ((pkgs (eask--cask-reqs-dev)))
+                     (insert "\n")
                      (insert "(development\n")
                      (dolist (pkg pkgs)
                        (let ((val (mapconcat #'eask-2str (cdr pkg) "\" \"")))
@@ -2449,6 +2458,10 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
     converted))
 
 ;; ~/lisp/init/keg.el
+(defun eask--keg-no-reqs (contents)
+  "Return non-nil if no dependencies from Keg-file's CONTENTS."
+  (and (not (alist-get 'packages contents))
+       (not (alist-get 'devs contents))))
 (defun eask--keg-file-read (path)
   "Return sexp from Keg file (PATH) search from `deafult-directory'.
 If no found the Keg file, returns nil."
@@ -2530,22 +2543,23 @@ If no found the Keg file, returns nil."
                          (insert "(script \"" (eask-2str (car script))
                                  "\" " (prin1-to-string cmds) ")\n"))))
 
+                   (when-let ((sources (alist-get 'sources contents)))
+                     (insert "\n")
+                     (dolist (source sources)
+                       (insert "(source '" (eask-2str source) ")\n")))
+
                    (insert "\n")
-
-                   (dolist (source (alist-get 'sources contents))
-                     (insert "(source '" (eask-2str source) ")\n"))
-
-                   (insert "\n")
-
                    (insert (format "(depends-on \"emacs\" \"%s\")\n" emacs-version)))
+                 (when (eask--keg-no-reqs contents)
+                   (insert "\n"))  ; Make sure end line exists!
 
                  (when-let ((pkgs (alist-get 'packages contents)))
+                   (insert "\n")
                    (dolist (pkg pkgs)
                      (insert "(depends-on \"" (eask-2str (car pkg)) "\")\n")))
 
-                 (insert "\n")
-
                  (when-let ((devs (alist-get 'devs contents)))
+                   (insert "\n")
                    (insert "(development\n")
                    (dolist (dev devs)
                      (insert " (depends-on \"" (eask-2str dev) "\")\n"))
