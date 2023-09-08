@@ -2340,16 +2340,18 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
     (dolist (dev-scope dev-scopes)
       (setq deps (append deps (eask--cask-filter-contents 'depends-on (cdr dev-scope)))))
     deps))
-(defun eask--cask-no-reqs ()
-  "Return non-nil if no dependencies from Cask-file."
-  (and (not (eask--cask-reqs-no-emacs))
-       (not (eask--cask-reqs-dev))))
-(defun eask--cask-reqs-no-emacs ()
-  "Return dependencies from Cask-file but exclude Emacs."
+(defun eask--cask-remove-emacs-dep (list)
+  "Remove dependency Emacs from dependencies LIST."
   (cl-remove-if (lambda (req)
                   (when (string= (cadr req) "emacs")
                     (caddr req)))
-                (eask--cask-reqs)))
+                list))
+(defun eask--cask-reqs-no-emacs ()
+  "Return dependencies from Cask-file but exclude Emacs."
+  (eask--cask-remove-emacs-dep (eask--cask-reqs)))
+(defun eask--cask-reqs-dev-no-emacs ()
+  "Return development dependencies from Cask-file but exclude Emacs."
+  (eask--cask-remove-emacs-dep (eask--cask-reqs-dev)))
 (defun eask--cask-emacs-version ()
   "Return Emacs version from Cask-file."
   (let ((reqs (eask--cask-reqs)))
@@ -2429,13 +2431,14 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                    (insert "\n")
                    (insert "(script \"test\" \"echo \\\"Error: no test specified\\\" && exit 1\")\n")
 
-                   (dolist (source (eask--cask-sources))
+                   (when-let ((sources (eask--cask-sources)))
                      (insert "\n")
-                     (insert "(source '" (eask-2str (cadr source)) ")\n"))
+                     (dolist (source sources)
+                       (insert "(source '" (eask-2str (cadr source)) ")\n")))
 
                    (insert "\n")
                    (insert "(depends-on \"emacs\" \"" emacs-version "\")")
-                   (when (eask--cask-no-reqs)
+                   (unless (eask--cask-reqs-no-emacs)
                      (insert "\n"))  ; Make sure end line exists!
 
                    (when-let ((pkgs (eask--cask-reqs-no-emacs)))
@@ -2444,7 +2447,7 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                        (let ((val (mapconcat #'eask-2str (cdr pkg) "\" \"")))
                          (insert "(depends-on \"" val "\")\n"))))
 
-                   (when-let ((pkgs (eask--cask-reqs-dev)))
+                   (when-let ((pkgs (eask--cask-reqs-dev-no-emacs)))
                      (insert "\n")
                      (insert "(development\n")
                      (dolist (pkg pkgs)
@@ -2458,10 +2461,6 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
     converted))
 
 ;; ~/lisp/init/keg.el
-(defun eask--keg-no-reqs (contents)
-  "Return non-nil if no dependencies from Keg-file's CONTENTS."
-  (and (not (alist-get 'packages contents))
-       (not (alist-get 'devs contents))))
 (defun eask--keg-file-read (path)
   "Return sexp from Keg file (PATH) search from `deafult-directory'.
 If no found the Keg file, returns nil."
@@ -2549,8 +2548,8 @@ If no found the Keg file, returns nil."
                        (insert "(source '" (eask-2str source) ")\n")))
 
                    (insert "\n")
-                   (insert (format "(depends-on \"emacs\" \"%s\")\n" emacs-version)))
-                 (when (eask--keg-no-reqs contents)
+                   (insert "(depends-on \"emacs\" \"" emacs-version "\")"))
+                 (unless (alist-get 'packages contents)
                    (insert "\n"))  ; Make sure end line exists!
 
                  (when-let ((pkgs (alist-get 'packages contents)))
