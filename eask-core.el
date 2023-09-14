@@ -485,9 +485,7 @@ will return `lint/checkdoc' with a dash between two subcommands."
     result))
 (defun eask-s-replace (old new s)
   "Replace OLD with NEW in S each time it occurs."
-  (if (fboundp #'string-replace)
-      (string-replace old new s)
-    (replace-regexp-in-string (regexp-quote old) new s t t)))
+  (replace-regexp-in-string (regexp-quote old) new s t t))
 (defun eask-f-filename (path)
   "Return the name of PATH."
   (file-name-nondirectory (directory-file-name path)))
@@ -501,6 +499,22 @@ The function `directory-empty-p' only exists 28.1 or above; copied it."
          ;; XXX: Do not pass in the 5th argument COUNT; it doesn't compatbile to
          ;; 27.2 or lower!
          (null (directory-files dir nil directory-files-no-dot-files-regexp t)))))
+(defun eask-guess-entry-point (project-name)
+  "Return the guess entry point by its PROJECT-NAME."
+  (if (string-suffix-p ".el" project-name)
+      project-name
+    (format "%s.el" project-name)))
+(defun eask-read-string (prompt &optional
+                                initial-input
+                                history
+                                default-value
+                                inherit-input-method)
+  "Wrapper for function `read-string'.
+
+Argument PROMPT and all optional arguments INITIAL-INPUT, HISTORY, DEFAULT-VALUE
+and INHERIT-INPUT-METHOD see function `read-string' for more information."
+  (let ((str (read-string prompt initial-input history default-value inherit-input-method)))
+    (eask-s-replace "\"" "" str)))
 (defun eask-progress-seq (prefix sequence suffix func)
   "Shorthand to progress SEQUENCE of task.
 
@@ -2386,21 +2400,21 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                              (file-name-nondirectory (directory-file-name default-directory))))
                         (package-name
                          (or (eask--cask-package-name)
-                             (read-string (format "package name: (%s) " project-name) nil nil project-name)))
+                             (eask-read-string (format "package name: (%s) " project-name) nil nil project-name)))
                         (version (or (eask--cask-package-version)
-                                     (read-string "version: (1.0.0) " nil nil "1.0.0")))
+                                     (eask-read-string "version: (1.0.0) " nil nil "1.0.0")))
                         (description (or (eask--cask-package-description)
-                                         (read-string "description: ")))
-                        (guess-entry-point (format "%s.el" project-name))
+                                         (eask-read-string "description: ")))
+                        (guess-entry-point (eask-guess-entry-point project-name))
                         (entry-point
                          (or (eask--cask-package-file)
-                             (read-string (format "entry point: (%s) " guess-entry-point)
-                                          nil nil guess-entry-point)))
+                             (eask-read-string (format "entry point: (%s) " guess-entry-point)
+                                               nil nil guess-entry-point)))
                         (emacs-version
                          (or (eask--cask-emacs-version)
-                             (read-string "emacs version: (26.1) " nil nil "26.1")))
-                        (website (read-string "website: "))
-                        (keywords (read-string "keywords: "))
+                             (eask-read-string "emacs version: (26.1) " nil nil "26.1")))
+                        (website (eask-read-string "website: "))
+                        (keywords (eask-read-string "keywords: "))
                         (keywords (split-string keywords "[, ]"))
                         (keywords (string-join keywords "\" \""))
                         (content (format
@@ -2507,15 +2521,15 @@ If no found the Keg file, returns nil."
                  (goto-char (point-min))
 
                  (let* ((project-name (file-name-nondirectory (directory-file-name default-directory)))
-                        (package-name (read-string (format "\npackage name: (%s) " project-name) nil nil project-name))
-                        (version (read-string "version: (1.0.0) " nil nil "1.0.0"))
-                        (description (read-string "description: "))
-                        (guess-entry-point (format "%s.el" project-name))
-                        (entry-point (read-string (format "entry point: (%s) " guess-entry-point)
-                                                  nil nil guess-entry-point))
-                        (emacs-version (read-string "emacs version: (26.1) " nil nil "26.1"))
-                        (website (read-string "website: "))
-                        (keywords (read-string "keywords: "))
+                        (package-name (eask-read-string (format "\npackage name: (%s) " project-name) nil nil project-name))
+                        (version (eask-read-string "version: (1.0.0) " nil nil "1.0.0"))
+                        (description (eask-read-string "description: "))
+                        (guess-entry-point (eask-guess-entry-point project-name))
+                        (entry-point (eask-read-string (format "entry point: (%s) " guess-entry-point)
+                                                       nil nil guess-entry-point))
+                        (emacs-version (eask-read-string "emacs version: (26.1) " nil nil "26.1"))
+                        (website (eask-read-string "website: "))
+                        (keywords (eask-read-string "keywords: "))
                         (keywords (split-string keywords "[, ]"))
                         (keywords (string-join keywords "\" \""))
                         (content (format
