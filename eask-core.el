@@ -407,6 +407,8 @@ Arguments FNC and ARGS are used for advice `:around'."
   "Eask temporary storage.")
 (defconst eask-invocation (getenv "EASK_INVOCATION")
   "Eask invocation program.")
+(defconst eask-is-pkg (getenv "EASK_IS_PKG")
+  "Eask is pkg.")
 (defconst eask-argv argv
   "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
 (defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
@@ -2110,11 +2112,12 @@ Argument VERSION is a string represent the version number of this package."
 (defun eask--export-command (command)
   "Export COMMAND instruction."
   (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
-  ;; XXX: Due to `MODULE_NOT_FOUND` not found error from vcpkg,
-  ;; see https://github.com/vercel/pkg/issues/1356.
-  ;;
-  ;; We must split up all commands!
-  (setq command (eask-s-replace " && " "\n" command))
+  (when eask-is-pkg
+    ;; XXX: Due to `MODULE_NOT_FOUND` not found error from vcpkg,
+    ;; see https://github.com/vercel/pkg/issues/1356.
+    ;;
+    ;; We must split up all commands!
+    (setq command (eask-s-replace " && " "\n" command)))
   (write-region (concat command "\n") nil eask--run-file t))
 (defun eask--unmatched-scripts (scripts)
   "Return a list of SCRIPTS that cannot be found in `eask-scripts'."
