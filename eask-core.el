@@ -2387,17 +2387,16 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
          (file (file-name-nondirectory (eask-root-del filename)))
          (new-file (eask-s-replace "Cask" "Eask" file))
          (new-filename (expand-file-name new-file))
-         (eask--cask-contents (cask--read filename))  ; Read it!
+         (eask--cask-contents (ignore-errors (cask--read filename)))  ; Read it!
          (converted))
     (eask-with-progress
       (format "Converting file `%s` to `%s`... " file new-file)
       (eask-with-verbosity 'debug
         (cond ((not (string-prefix-p "Cask" file))
                (eask-debug "✗ Invalid Cask filename, the file should start with `Cask`"))
-              ((file-exists-p new-filename)
-               (eask-debug "✗ The file `%s` already presented" new-file))
               (t
                (with-current-buffer (find-file new-filename)
+                 (erase-buffer)
                  (goto-char (point-min))
 
                  ;; XXX: Newline to look nicer!
@@ -2443,7 +2442,9 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                                (files (if (stringp files) files (-flatten files))))
                      (insert "(files")
                      (dolist (file files)
-                       (insert "\n \"" file "\""))
+                       (if (stringp file)
+                           (insert "\n \"" file "\"")
+                         (insert "\n " (eask-2str file))))
                      (insert ")\n"))
 
                    (when-let ((pkg-desc (eask--cask-package-descriptor)))
@@ -2515,17 +2516,16 @@ If no found the Keg file, returns nil."
          (file (file-name-nondirectory (eask-root-del filename)))
          (new-file (eask-s-replace "Keg" "Eask" file))
          (new-filename (expand-file-name new-file))
-         (contents (eask--keg-file-read filename))  ; Read it!
+         (contents (ignore-errors (eask--keg-file-read filename)))  ; Read it!
          (converted))
     (eask-with-progress
       (format "Converting file `%s` to `%s`... " file new-file)
       (eask-with-verbosity 'debug
         (cond ((not (string-prefix-p "Keg" file))
                (eask-debug "✗ Invalid Keg filename, the file should start with `Keg`"))
-              ((file-exists-p new-filename)
-               (eask-debug "✗ The file `%s` already presented" new-file))
               (t
                (with-current-buffer (find-file new-filename)
+                 (erase-buffer)
                  (goto-char (point-min))
 
                  (let* ((project-name (file-name-nondirectory (directory-file-name default-directory)))
@@ -2607,11 +2607,10 @@ If no found the Keg file, returns nil."
       (eask-with-verbosity 'debug
         (cond ((not (string-suffix-p ".el" file))
                (eask-debug "✗ Invalid elisp filename, the file should end with `.el`"))
-              ((file-exists-p new-filename)
-               (eask-debug "✗ The file `%s` already presented" new-file))
               (t
                (when pkg-desc
                  (with-current-buffer (find-file new-filename)
+                   (erase-buffer)
                    (goto-char (point-min))
 
                    (let* ((eask-package-desc pkg-desc)
@@ -2651,7 +2650,7 @@ If no found the Keg file, returns nil."
                    (save-buffer))
                  (setq converted t)))))
       (if converted "done ✓" "skipped ✗"))
-    converted))
+    (when converted new-filename)))
 
 ;; ~/lisp/link/add.el
 (defvar eask--link-package-name    nil "Used to form package name.")
