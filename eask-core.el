@@ -2596,7 +2596,7 @@ If no found the Keg file, returns nil."
   "Convert elisp source FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
          (file (file-name-nondirectory (eask-root-del filename)))
-         (new-file (concat "Eask-" (file-name-sans-extension file)))
+         (new-file (concat "Eask." (file-name-sans-extension file)))
          (new-filename (expand-file-name new-file))
          (pkg-desc (with-temp-buffer
                      (insert-file-contents filename)
