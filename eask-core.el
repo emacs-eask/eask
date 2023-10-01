@@ -368,6 +368,10 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   "Name of default target directory for building packages."
   :type 'string
   :group 'eask)
+(defcustom eask-recipe-path "recipes"
+  "Name of default target directory for placing recipes."
+  :type 'string
+  :group 'eask)
 (defvar eask-lint-first-file-p nil
   "Set the flag to t after the first file is linted.")
 (require 'ansi-color nil t)
@@ -892,6 +896,9 @@ full detials."
 (defun eask-number-p ()
   "Non-nil when flag is on (`-n', `--number')."
   (eask--flag "--number"))
+(defun eask-yes-p ()
+  "Non-nil when flag is on (`--yes')."
+  (eask--flag "--yes"))
 (defun eask-output ()
   "Non-nil when flag has value (`--o', `--output')."
   (eask--flag-value "--output"))
@@ -956,7 +963,8 @@ Argument PROTOCAL and HOST are used to construct scheme."
      "--no-color"
      "--clean"
      "--json"
-     "--number"))
+     "--number"
+     "--yes"))
   "List of boolean type options.")
 (defconst eask--option-args
   (eask--form-options
@@ -981,8 +989,10 @@ Simply remove `--eask' for each option, like `--eask--strict' to `--strict'."
   (mapcar (lambda (arg)
             (eask-s-replace "--eask" "" arg))
           eask-argv))
-(defun eask-args ()
-  "Get all arguments except options."
+(defun eask-args (&optional index)
+  "Get all arguments except options
+
+If the optional argument INDEX is non-nil, return the element."
   (let ((argv (cl-remove-if (lambda (arg) (member arg eask--option-switches)) eask-argv))
         (args) (skip-next))
     (dolist (arg argv)
@@ -990,7 +1000,8 @@ Simply remove `--eask' for each option, like `--eask--strict' to `--strict'."
         (if (member arg eask--option-args)
             (setq skip-next t)
           (push arg args))))
-    (reverse args)))
+    (setq args (reverse args))
+    (if index (nth 0 args) args)))
 (defconst eask-file-keywords
   '("package" "website-url" "keywords"
     "author" "license"
@@ -2077,6 +2088,25 @@ Argument VERSION is a string represent the version number of this package."
     (eask--packaged-file "el")))
 
 ;; ~/lisp/core/recipe.el
+(defun eask--recipe-string ()
+  "Return the recipe format in string."
+  (when-let ((url (eask-package-desc-url)))
+    (let* ((fetcher (cond ((string-match-p "github.com" url) 'github)
+                          ((string-match-p "gitlab.com" url) 'gitlab)
+                          (t 'git)))
+           (url-regex (if (eq fetcher 'github)
+                          "http[s]://github.com/"
+                        "http[s]://gitlab.com/"))
+           (repo (replace-regexp-in-string url-regex "" url))
+           (name (eask-guess-package-name))
+           (recipe `(,(intern name) :fetcher ,fetcher)))
+      (cond ((memq fetcher '(git hg))
+             (nconc recipe `(:url ,url)))
+            ((memq fetcher '(gitlab github))
+             (nconc recipe `(:repo ,repo))))
+      (when eask-files
+        (nconc recipe `(:files ,(append '(:defaults) eask-files))))
+      recipe)))
 
 ;; ~/lisp/core/refresh.el
 
@@ -2315,6 +2345,8 @@ Argument VERSION is a string represent the version number of this package."
     (write-region
      (pp-to-string `(define-package ,name ,version ,description ',reqs))
      nil pkg-file)))
+
+;; ~/lisp/generate/recipe.el
 
 ;; ~/lisp/init/cask.el
 (declare-function ansi-green "ext:ansi.el")
