@@ -374,6 +374,15 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   :group 'eask)
 (defvar eask-lint-first-file-p nil
   "Set the flag to t after the first file is linted.")
+(defvar eask-commands nil
+  "List of defined commands.")
+(defmacro eask-defcommand (name &rest body)
+  "Define an Eask command."
+  (declare (doc-string 2) (indent 1))
+  (or name (error "Cannot define '%s' as a command" name))
+  (push name eask-commands)
+  (setq eask-commands (delete-dups eask-commands))
+  `(defun ,name nil ,@body))
 (require 'ansi-color nil t)
 (require 'package nil t)
 (require 'project nil t)
@@ -1786,6 +1795,34 @@ Argument LEVEL and MSG are data from the debug log signal."
     (mapc #'eask--print-archive alist)))
 
 ;; ~/lisp/core/cat.el
+
+;; ~/lisp/core/command.el
+(defun eask--command-desc (name)
+  "Return command's description by its command's NAME."
+  (car (split-string (documentation name) "\n")))
+(defun eask--print-commands ()
+  "Print all available commands."
+  (eask-msg "available via `eask command`")
+  (eask-msg "")
+  (let* ((keys (reverse eask-commands))
+         (offset (eask-seq-str-max keys))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (key keys)
+      (eask-msg fmt key (eask--command-desc key)))
+    (eask-msg "")
+    (eask-info "(Total of %s available script%s)" (length keys)
+               (eask--sinr keys "" "s"))))
+(defun eask--execute-command (name)
+  "Execute the command by NAME."
+  (eask-info "[RUN]: %s" name)
+  (funcall (eask-intern name)))
+(defun eask--unmatched-commands (commands)
+  "Return a list of COMMANDS that cannot be found in `eask-commands'."
+  (let (unmatched)
+    (dolist (command commands)
+      (unless (memq (eask-intern command) eask-commands)
+        (push command unmatched)))
+    unmatched))
 
 ;; ~/lisp/core/compile.el
 (defconst eask-compile-log-buffer-name "*Compile-Log*"
