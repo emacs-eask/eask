@@ -195,7 +195,7 @@ Argument BODY are forms for execution."
                ;; for the sandbox.
                (eask-with-verbosity 'debug
                  (eask-ignore-errors  ; Again, without Eask-file needed!
-                   (if (eask-file-try-load "../")
+                   (if (eask-file-try-load "./")
                        (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
                      (eask-msg "✗ Loading global Eask file... missing!")))
                  (eask-msg ""))
@@ -2171,7 +2171,7 @@ Argument VERSION is a string represent the version number of this package."
 (declare-function ansi-underscore "ext:ansi.el")
 (defun eask--environment-name ()
   "Get the working environment name."
-  (cond ((eask-global-p) "global (~/.eask/)")
+  (cond ((eask-global-p) "global (~/)")
         ((eask-config-p) (format "configuration (%s)" user-emacs-directory))
         (t               "development (./)")))
 (defun eask--print-title (title)
