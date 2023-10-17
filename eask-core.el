@@ -1796,34 +1796,6 @@ Argument LEVEL and MSG are data from the debug log signal."
 
 ;; ~/lisp/core/cat.el
 
-;; ~/lisp/core/command.el
-(defun eask--command-desc (name)
-  "Return command's description by its command's NAME."
-  (car (split-string (documentation name) "\n")))
-(defun eask--print-commands ()
-  "Print all available commands."
-  (eask-msg "available via `eask command`")
-  (eask-msg "")
-  (let* ((keys (reverse eask-commands))
-         (offset (eask-seq-str-max keys))
-         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
-    (dolist (key keys)
-      (eask-msg fmt key (eask--command-desc key)))
-    (eask-msg "")
-    (eask-info "(Total of %s available script%s)" (length keys)
-               (eask--sinr keys "" "s"))))
-(defun eask--execute-command (name)
-  "Execute the command by NAME."
-  (eask-info "[RUN]: %s" name)
-  (funcall (eask-intern name)))
-(defun eask--unmatched-commands (commands)
-  "Return a list of COMMANDS that cannot be found in `eask-commands'."
-  (let (unmatched)
-    (dolist (command commands)
-      (unless (memq (eask-intern command) eask-commands)
-        (push command unmatched)))
-    unmatched))
-
 ;; ~/lisp/core/compile.el
 (defconst eask-compile-log-buffer-name "*Compile-Log*"
   "Byte-compile log buffer name.")
@@ -2160,39 +2132,6 @@ Argument VERSION is a string represent the version number of this package."
     (eask-msg "")
     (eask-info "(Total of %s package%s reinstalled, %s skipped)"
                installed s skipped)))
-
-;; ~/lisp/core/run.el
-(defconst eask--run-file (expand-file-name "run" eask-homedir)
-  "Target file to export the `run' scripts.")
-(defun eask--print-scripts ()
-  "Print all available scripts."
-  (eask-msg "available via `eask run-script`")
-  (eask-msg "")
-  (let* ((keys (mapcar #'car (reverse eask-scripts)))
-         (offset (eask-seq-str-max keys))
-         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
-    (dolist (key keys)
-      (eask-msg fmt key (cdr (assoc key eask-scripts))))
-    (eask-msg "")
-    (eask-info "(Total of %s available script%s)" (length keys)
-               (eask--sinr keys "" "s"))))
-(defun eask--export-command (command)
-  "Export COMMAND instruction."
-  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
-  (when eask-is-pkg
-    ;; XXX: Due to `MODULE_NOT_FOUND` not found error from vcpkg,
-    ;; see https://github.com/vercel/pkg/issues/1356.
-    ;;
-    ;; We must split up all commands!
-    (setq command (eask-s-replace " && " "\n" command)))
-  (write-region (concat command "\n") nil eask--run-file t))
-(defun eask--unmatched-scripts (scripts)
-  "Return a list of SCRIPTS that cannot be found in `eask-scripts'."
-  (let (unmatched)
-    (dolist (script scripts)
-      (unless (assoc script eask-scripts)
-        (push script unmatched)))
-    unmatched))
 
 ;; ~/lisp/core/search.el
 (defun eask--search-packages (query)
@@ -3068,6 +3007,67 @@ be assigned to variable `checkdoc-create-error-function'."
       (unless errors
         (eask-msg "No issues found"))
       (kill-this-buffer))))
+
+;; ~/lisp/run/command.el
+(defun eask--command-desc (name)
+  "Return command's description by its command's NAME."
+  (car (split-string (documentation name) "\n")))
+(defun eask--print-commands ()
+  "Print all available commands."
+  (eask-msg "available via `eask run command`")
+  (eask-msg "")
+  (let* ((keys (reverse eask-commands))
+         (offset (eask-seq-str-max keys))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (key keys)
+      (eask-msg fmt key (eask--command-desc key)))
+    (eask-msg "")
+    (eask-info "(Total of %s available script%s)" (length keys)
+               (eask--sinr keys "" "s"))))
+(defun eask--execute-command (name)
+  "Execute the command by NAME."
+  (eask-info "[RUN]: %s" name)
+  (funcall (eask-intern name)))
+(defun eask--unmatched-commands (commands)
+  "Return a list of COMMANDS that cannot be found in `eask-commands'."
+  (let (unmatched)
+    (dolist (command commands)
+      (unless (memq (eask-intern command) eask-commands)
+        (push command unmatched)))
+    unmatched))
+
+;; ~/lisp/run/script.el
+(defconst eask--run-file (expand-file-name "run" eask-homedir)
+  "Target file to export the `run' scripts.")
+(defun eask--print-scripts ()
+  "Print all available scripts."
+  (eask-msg "available via `eask run script`")
+  (eask-msg "")
+  (let* ((keys (mapcar #'car (reverse eask-scripts)))
+         (offset (eask-seq-str-max keys))
+         (fmt (concat "  %-" (eask-2str offset) "s  %s")))
+    (dolist (key keys)
+      (eask-msg fmt key (cdr (assoc key eask-scripts))))
+    (eask-msg "")
+    (eask-info "(Total of %s available script%s)" (length keys)
+               (eask--sinr keys "" "s"))))
+(defun eask--export-command (command)
+  "Export COMMAND instruction."
+  (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
+  (when eask-is-pkg
+    ;; XXX: Due to `MODULE_NOT_FOUND` not found error from vcpkg,
+    ;; see https://github.com/vercel/pkg/issues/1356.
+    ;;
+    ;; We must split up all commands!
+    (setq command (eask-s-replace " && " "\n" command)))
+  (write-region (concat command "\n") nil eask--run-file t))
+(defun eask--unmatched-scripts (scripts)
+  "Return a list of SCRIPTS that cannot be found in `eask-scripts'."
+  (let (unmatched)
+    (dolist (script scripts)
+      (unless (assoc script eask-scripts)
+        (push script unmatched)))
+    unmatched))
 
 ;; ~/lisp/test/activate.el
 
