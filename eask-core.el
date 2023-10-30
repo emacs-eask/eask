@@ -38,6 +38,12 @@
 (declare-function ansi-green "ext:ansi.el")
 (declare-function ansi-yellow "ext:ansi.el")
 (declare-function ansi-white "ext:ansi.el")
+(defcustom eask-import-timeout 10
+  "Number of seconds before timing out elisp importation attempts.
+If nil, never time out."
+  :type '(choice (number :tag "Number of seconds")
+                 (const  :tag "Never time out" nil))
+  :group 'eask)
 (defvar eask-loading-file-p nil
   "This became t; if we are loading script from another file and not expecting
 the `eask-start' execution.")
@@ -461,7 +467,8 @@ will return `lint/checkdoc' with a dash between two subcommands."
   (member (eask-command) '("init/cask" "init/eldev" "init/keg"
                            "init/source"
                            "cat" "keywords"
-                           "generate/ignore" "generate/license")))
+                           "generate/ignore" "generate/license"
+                           "test/melpazoid")))
 (defun eask-checker-p ()
   "Return t if running Eask as the checker."
   (member (eask-command) '("check-eask")))
@@ -477,6 +484,14 @@ will return `lint/checkdoc' with a dash between two subcommands."
             ((file-exists-p script-file)))
       (load script-file nil t)
     (eask-error "Script missing %s" script-file)))
+(defun eask-import (url)
+  "Load and eval the script from a URL."
+  (with-current-buffer (url-retrieve-synchronously url t nil eask-import-timeout)
+    (goto-char (point-min))
+    (re-search-forward "^$" nil 'move)
+    (forward-char)
+    (delete-region (point-min) (point))
+    (eval-buffer)))
 (defun eask-2str (obj)
   "Convert OBJ to string."
   (format "%s" obj))
@@ -3093,6 +3108,13 @@ Arguments FNC and ARGS are used for advice `:around'."
        ((string-match-p "^[ ]+passed " (apply #'format args))
         (eask-msg (ansi-green (apply #'format args))))
        (t (apply fnc args))))))
+
+;; ~/lisp/test/melpazoid.el
+(defcustom eask-melpazoid-el-url
+  "https://raw.githubusercontent.com/riscy/melpazoid/master/melpazoid/melpazoid.el"
+  "Url path to melpazoid's elisp file."
+  :type 'string
+  :group 'eask)
 
 (provide 'eask-core)
 ;; Local Variables:
