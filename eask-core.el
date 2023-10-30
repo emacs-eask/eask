@@ -3026,7 +3026,7 @@ be assigned to variable `checkdoc-create-error-function'."
 ;; ~/lisp/run/command.el
 (defun eask--command-desc (name)
   "Return command's description by its command's NAME."
-  (car (split-string (documentation name) "\n")))
+  (car (split-string (or (documentation name) "") "\n")))
 (defun eask--print-commands ()
   "Print all available commands."
   (eask-msg "available via `eask run command`")
