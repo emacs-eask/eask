@@ -1125,6 +1125,18 @@ This uses function `locate-dominating-file' to look up directory tree."
     (gnu-devel    . "https://elpa.gnu.org/devel/")
     (nongnu-devel . "https://elpa.nongnu.org/nongnu-devel/"))
   "Mapping of source name and url.")
+(defun eask-2url (url)
+  "Convert secure/insecure URL."
+  (if (and url
+           (gnutls-available-p)
+           (eask-network-insecure-p))
+      (eask-s-replace "https://" "http://" url)
+    url))
+(defun eask-source-url (name &optional location)
+  "Get the source url by it's NAME and LOCATION."
+  (setq location (or location (cdr (assq (intern (eask-2str name)) eask-source-mapping)))
+        location (eask-2url location))
+  location)
 (defun eask-package--get (key)
   "Return package info by KEY."
   (plist-get eask-package key))
@@ -1246,12 +1258,8 @@ argument COMMAND."
   (when (symbolp name) (setq name (eask-2str name)))  ; ensure to string, accept symbol
   (when (assoc name package-archives)
     (eask-error "Multiple definition of source `%s'" name))
-  (setq location (or location (cdr (assq (intern name) eask-source-mapping))))
+  (setq location (eask-source-url name location))
   (unless location (eask-error "Unknown package archive `%s'" name))
-  (when (and location
-             (gnutls-available-p)
-             (not (eask-network-insecure-p)))
-    (setq location (eask-s-replace "https://" "http://" location)))
   (add-to-list 'package-archives (cons name location) t))
 (defun eask-f-source-priority (archive-id &optional priority)
   "Add PRIORITY for to ARCHIVE-ID."
@@ -1798,7 +1806,7 @@ Argument LEVEL and MSG are data from the debug log signal."
          (priority (assoc name package-archive-priorities))
          (priority (cdr priority)))
     (message (concat "  %-" eask--length-name "s  %-" eask--length-url "s  %-" eask--length-priority "s")
-             name url (or priority 0))))
+             name (eask-2url url) (or priority 0))))
 (defun eask--print-archive-alist (alist)
   "Print the archvie ALIST."
   (let* ((names (mapcar #'car alist))
@@ -3132,6 +3140,98 @@ be assigned to variable `checkdoc-create-error-function'."
       (unless (assoc script eask-scripts)
         (push script unmatched)))
     unmatched))
+
+;; ~/lisp/source/add.el
+(defun eask--source-from-mapping (name url)
+  "Return t if NAME and URL matched our database."
+  (string= (eask-source-url name) url))
+(defun eask--source-add (name url exists)
+  "Add an archive source by NAME.
+
+If argument URL is nil; ignore the insertion.
+
+Arguments EXISTS is used to print the information."
+  (let* ((style-sym (string-match "([ \t\n\r]*source[ \t\n\r]*[']+" (buffer-string)))
+         (name-str (if style-sym (concat "'" name)
+                     (concat "\"" name "\"")))
+         (built-in (eask--source-from-mapping name url)))
+    (if (and url (not built-in))
+        (insert "(source " name-str " \"" url "\")\n")
+      (insert "(source " name-str ")\n"))
+    (eask-info "(New source `%s' added and points to `%s')" name (or url (cdr exists)))))
+(defun eask--source-write (name url exists)
+  "Write source construct by NAME and URL.
+
+The argument URL can be nil.
+
+The argument EXISTS is use to search for correct position to insert new source."
+  (with-current-buffer (find-file eask-file)
+    (goto-char (point-min))
+    (cond
+     (exists
+      (if (re-search-forward (concat "([ \t\n\r]*source[ \t\n\r]*['\"]+" name)  nil t)
+          (let ((start (point))
+                (built-in (eask--source-from-mapping name url)))
+            (when (string= "\"" (string (char-after)))
+              (cl-incf start))
+            (re-search-forward "[ \t\r\n\")]*" nil t)  ; Forward to non-space characters!
+            (forward-char -1)
+            (when (string= "\n" (string (char-after)))
+              (forward-char -1))
+            (pcase (string (char-after))
+              (")"
+               (unless built-in
+                 (insert " \"" url "\"")))
+              ("\""
+               (if built-in
+                   (delete-region start (save-window-excursion
+                                          (search-forward ")" nil t)
+                                          (1- (point))))
+                 (let ((old (thing-at-point 'string))
+                       (new (concat "\"" url "\"")))
+                   (delete-region (point) (+ (point) (length old)))
+                   (insert new)))))
+            (eask-info "(Changed archive `%s''s location from `%s' to `%s')"
+                       name (cdr exists) url))
+        (goto-char (point-max))
+        (eask--source-add name url exists)))
+     (t
+      (if (re-search-forward "([ \t\n\r]*source[ \t\n\r]*['\"]+"  nil t)
+          (forward-paragraph)
+        (goto-char (point-max)))
+      (eask--source-add name url exists)))
+    (save-buffer)))
+(defun eask--source-ask-if-overwrite (name url)
+  "Ask source overwrite if needed.
+
+Arguments NAME and URL are main arguments for this command."
+  (if-let ((exists (assoc name package-archives))
+           (old-url (cdr exists)))
+      (cond ((string= old-url url)
+             (eask-info "(Nothing has changed due to the URLs are the same)"))
+            ((yes-or-no-p
+              (format
+               (concat
+                "The archive `%s' is already exists and currently points  to `%s'.
+
+Do you want to overwrite it? ")
+               name old-url))
+             (eask--source-write name url exists))
+            (t
+             (eask-info "(Nothing has changed, aborted)")))
+    (eask--source-write name url nil)))
+
+;; ~/lisp/source/delete.el
+(defun eask--source-delete (name)
+  "Delete an archive source by NAME."
+  (with-current-buffer (find-file eask-file)
+    (goto-char (point-min))
+    (when (re-search-forward (concat "([ \t\n\r]*source[ \t\n\r]*['\"]+" name) nil t)
+      (delete-region (line-beginning-position) (1+ (line-end-position)))
+      (eask-info "(Delete source `%s')" name))
+    (save-buffer)))
+
+;; ~/lisp/source/list.el
 
 ;; ~/lisp/test/activate.el
 
