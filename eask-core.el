@@ -234,7 +234,7 @@ Argument BODY are forms for execution."
                  (if (eask-file-try-load "./")
                      (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
                    (eask-msg "✗ Loading Eask file... missing!"))
-                 (message ""))
+                 (eask-msg ""))
                (if (not eask-file)
                    (eask-help "core/init")
                  (package-activate-all)
@@ -1414,19 +1414,36 @@ character."
          (string (eask--msg-paint-kwds string))
          (string (eask--msg-displayable-kwds string)))
     string))
+(defun eask-princ (object &optional stderr)
+  "Like function `princ'; with flag STDERR.
+
+For argument OBJECT, please see function `princ' for the detials.
+
+If optional argument STDERR is non-nil; use stderr instead."
+  (unless inhibit-message
+    (princ object (when stderr #'external-debugging-output))))
+(defun eask-print (msg &rest args)
+  "Standard output printing without newline.
+
+For arguments MSG and ARGS, please see function `eask--format-paint-kwds' for
+the detials."
+  (eask-princ (apply #'eask--format-paint-kwds msg args)))
+(defun eask-println (msg &rest args)
+  "Like the function `eask-print' but contains the newline at the end.
+
+For arguments MSG and ARGS, please see function `eask-print' for the detials."
+  (apply #'eask-print (concat msg "\n") args))
 (defun eask-msg (msg &rest args)
-  "Like function `message' but replace unicodes with color.
+  "Like the function `message' but replace unicode with color.
 
 For arguments MSG and ARGS, please see function `eask--format-paint-kwds' for
 the detials."
   (message (apply #'eask--format-paint-kwds msg args)))
 (defun eask-write (msg &rest args)
-  "Like function `eask-msg' but without newline at the end.
+  "Like the function `eask-msg' but without newline at the end.
 
-For arguments MSG and ARGS, please see function `eask--format-paint-kwds' for
-the detials."
-  (unless inhibit-message
-    (princ (apply #'eask--format-paint-kwds msg args) 'external-debugging-output)))
+For arguments MSG and ARGS, please see function `eask-msg' for the detials."
+  (eask-princ (apply #'eask--format-paint-kwds msg args) t))
 (defun eask-report (&rest args)
   "Report error/warning depends on strict flag.
 
@@ -1806,8 +1823,9 @@ Argument LEVEL and MSG are data from the debug log signal."
          (url (cdr archive))
          (priority (assoc name package-archive-priorities))
          (priority (cdr priority)))
-    (message (concat "  %-" eask--length-name "s  %-" eask--length-url "s  %-" eask--length-priority "s")
-             name (eask-2url url) (or priority 0))))
+    (eask-println
+     (concat "  %-" eask--length-name "s  %-" eask--length-url "s  %-" eask--length-priority "s")
+     name (eask-2url url) (or priority 0))))
 (defun eask--print-archive-alist (alist)
   "Print the archvie ALIST."
   (let* ((names (mapcar #'car alist))
@@ -1922,7 +1940,7 @@ The CMD is the command to start a new Emacs session."
 ;; ~/lisp/core/exec-path.el
 (defun eask--print-exec-path (path)
   "Print out the PATH."
-  (message "%s" path))
+  (eask-println "%s" path))
 
 ;; ~/lisp/core/exec.el
 (defconst eask--exec-path-file (expand-file-name "exec-path" eask-homedir)
@@ -1940,15 +1958,15 @@ The CMD is the command to start a new Emacs session."
 ;; ~/lisp/core/files.el
 (defun eask--print-filename (filename)
   "Print out the FILENAME."
-  (message "%s" filename))
+  (eask-println "%s" filename))
 
 ;; ~/lisp/core/info.el
 (defvar eask--max-offset 0)
 (defun eask--print-deps (title dependencies)
   "Print DEPENDENCIES with TITLE identifier."
   (when dependencies
-    (eask-msg "")
-    (eask-msg title)
+    (eask-println "")
+    (eask-println title)
     (let* ((names (mapcar #'car dependencies))
            (offset (eask-seq-str-max names)))
       (setq eask--max-offset (max offset eask--max-offset)
@@ -1958,7 +1976,7 @@ The CMD is the command to start a new Emacs session."
                (target-version (if (= (length target-version) 1)
                                    (nth 0 target-version)
                                  "specified")))
-          (eask-msg (concat "  %-" offset "s (%s)") (car dep) target-version)
+          (eask-println (concat "  %-" offset "s (%s)") (car dep) target-version)
           (eask-debug "    Recipe: %s" (car dep)))))))
 
 ;; ~/lisp/core/install-deps.el
@@ -2085,7 +2103,7 @@ is the deepness of the dependency nested level we want to go."
 ;; ~/lisp/core/load-path.el
 (defun eask--print-load-path (path)
   "Print out the PATH."
-  (message "%s" path))
+  (eask-println "%s" path))
 (defun eask--filter-path (path)
   "Filter the PATH out by search regex."
   (cl-some (lambda (regex)
@@ -2192,14 +2210,14 @@ Argument VERSION is a string represent the version number of this package."
         (t               "development (./)")))
 (defun eask--print-title (title)
   "Print section TITLE."
-  (eask-msg "")
-  (eask-msg (ansi-underscore title))
-  (eask-msg ""))
+  (eask-println "")
+  (eask-println (ansi-underscore title))
+  (eask-println ""))
 (defun eask--print-info (pair)
   "Print environment info PAIR."
   (let ((title   (eask-2str (car pair)))
         (content (eask-2str (cdr pair))))
-    (eask-msg "   %-22s %s" title (ansi-bright-black content))))
+    (eask-println "   %-22s %s" title (ansi-bright-black content))))
 
 ;; ~/lisp/core/uninstall.el
 (defun eask--uninstall-packages(names)
@@ -2812,7 +2830,7 @@ If no found the Keg file, returns nil."
   "Print information regarding the LINK.
 
 The argument OFFSET is used to align the result."
-  (message (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
+  (eask-println (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
 
 ;; ~/lisp/lint/checkdoc.el
 (defvar checkdoc-version)
