@@ -1119,7 +1119,7 @@ This uses function `locate-dominating-file' to look up directory tree."
   "Try load the Eask-file in START-PATH."
   (when-let* ((files (eask--find-files start-path))
               (file (car files)))
-    (eask-file-load file)))
+    (eask--unsilent (eask-file-load file))))
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
@@ -1205,13 +1205,14 @@ version number.  DESCRIPTION is the package description."
                     ((eask-pkg-el)                     ; if -pkg.el is presented,
                      (setq skipped t) nil)             ; skip it
                     (t (package-buffer-info))))))      ; default read main package file
-    (eask-msg (concat
-               (if eask-package-desc "✓ " "✗ ")
-               "Try constructing the package-descriptor (%s)... "
-               (cond (eask-package-desc "succeeded!")
-                     (skipped "skipped!")
-                     (t "failed!")))
-              (file-name-nondirectory file))))
+    (eask-with-verbosity 'debug
+      (eask-msg (concat
+                 (if eask-package-desc "✓ " "✗ ")
+                 "Try constructing the package-descriptor (%s)... "
+                 (cond (eask-package-desc "succeeded!")
+                       (skipped           "skipped!")
+                       (t                 "failed!")))
+                (file-name-nondirectory file)))))
 (defun eask-f-package-file (file)
   "Set package FILE."
   (if eask-package-file
