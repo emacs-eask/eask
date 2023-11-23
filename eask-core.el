@@ -777,7 +777,7 @@ Argument PKG is the name of the package."
      ((progn
         (eask-pkg-init)
         (unless (eask-package-installable-p pkg)
-          (eask-error "Package not installable `%s'; make sure package archive is included" pkg))))
+          (eask-error "Package not installable `%s'; make sure the package archive (source) is included" pkg))))
      ((when-let* ((desc (eask-package-desc pkg))
                   (req-emacs (assoc 'emacs (package-desc-reqs desc)))
                   (req-emacs (package-version-join (nth 0 (cdr req-emacs))))
