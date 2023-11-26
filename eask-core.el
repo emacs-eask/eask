@@ -38,6 +38,8 @@
 (declare-function ansi-green "ext:ansi.el")
 (declare-function ansi-yellow "ext:ansi.el")
 (declare-function ansi-white "ext:ansi.el")
+(defvar eask-dot-emacs-file nil
+  "Variable hold .emacs file location.")
 (defcustom eask-import-timeout 10
   "Number of seconds before timing out elisp importation attempts.
 If nil, never time out."
@@ -133,14 +135,7 @@ other scripts internally.  See function `eask-call'.")
   "Execute BODY with workspace setup."
   (declare (indent 0) (debug t))
   `(eask--batch-mode
-     (let (;; XXX: this will make command `info', `files' work as expected;
-           ;; but the relative paths file spec will be lost...
-           ;;
-           ;; So commands like `load' would NOT work!
-           (default-directory (cond ((eask-global-p) eask-homedir)
-                                    ((eask-config-p) user-emacs-directory)
-                                    (t default-directory)))
-           (alist))
+     (let ((alist))
        (dolist (cmd eask--command-list)
          (push (cons cmd (lambda (&rest _))) alist))
        (setq command-switch-alist (append command-switch-alist alist))
@@ -182,6 +177,7 @@ Argument BODY are forms for execution."
   `(let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
           (package-user-dir (expand-file-name "elpa" user-emacs-directory))
           (early-init-file (locate-user-emacs-file "early-init.el"))
+          (eask-dot-emacs-file (locate-user-emacs-file ".emacs"))
           (user-init-file (locate-user-emacs-file "init.el"))
           (custom-file (locate-user-emacs-file "custom.el")))
      ,@body))
@@ -194,44 +190,59 @@ Argument BODY are forms for execution."
        (eask--setup-env
          (eask--handle-global-options)
          (cond
-          ((or (eask-global-p) (eask-special-p))  ; Commands without Eask-file needed!
+          ((eask-config-p)
+           (let ((early-init-file (locate-user-emacs-file "early-init.el"))
+                 (eask-dot-emacs-file (locate-user-emacs-file "../.emacs"))
+                 (user-init-file (locate-user-emacs-file "init.el")))
+             ;; We accept Eask-file in `config' scope, but it shouldn't be used
+             ;; for the sandbox.
+             (eask-with-verbosity 'debug
+               (if (eask-file-try-load user-emacs-directory)
+                   (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
+                 (eask-msg "✗ Loading config Eask file... missing!"))
+               (eask-msg ""))
+             (package-activate-all)
+             (eask--load-config)
+             (eask--with-hooks ,@body)))
+          ((eask-global-p)
            (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
                ;; We accept Eask-file in `global' scope, but it shouldn't be used
                ;; for the sandbox.
                (eask-with-verbosity 'debug
-                 (eask-ignore-errors  ; Again, without Eask-file needed!
-                   (if (eask-file-try-load "./")
+                 (eask-ignore-errors  ; Eask-file is optional!
+                   (if (eask-file-try-load eask-homedir)
                        (eask-msg "✓ Loading global Eask file in %s... done!" eask-file)
                      (eask-msg "✗ Loading global Eask file... missing!")))
                  (eask-msg ""))
                (package-activate-all)
                (ignore-errors (make-directory package-user-dir t))
+               (eask-with-verbosity 'debug (eask--load-config))
                (eask--with-hooks ,@body))))
-          ((eask-config-p)
-           (let ((inhibit-config (eask-quick-p)))
-             ;; We accept Eask-file in `config' scope, but it shouldn't be used
-             ;; for the sandbox.
-             (eask-with-verbosity 'debug
-               (if (eask-file-try-load "./")
-                   (eask-msg "✓ Loading config Eask file in %s... done!" eask-file)
-                 (eask-msg "✗ Loading config Eask file... missing!"))
-               (eask-msg ""))
-             (package-activate-all)
-             (eask-with-progress
-               (ansi-green "Loading your configuration... ")
-               (eask-with-verbosity 'all
-                 (unless inhibit-config
-                   (load (locate-user-emacs-file "early-init.el") t)
-                   (load (locate-user-emacs-file "../.emacs") t)
-                   (load (locate-user-emacs-file "init.el") t)))
-               (ansi-green (if inhibit-config "skipped ✗" "done ✓")))
-             (eask--with-hooks ,@body)))
+          ((eask-special-p)  ; Commands without Eask-file needed!
+           ;; First, try to find a valid Eask-file!
+           (eask-file-try-load default-directory)
+           ;; Then setup the user directory according to the Eask-file!
+           (eask--setup-home (or eask-file-root
+                                 (concat eask-homedir "../"))
+             (let ((eask--first-init-p (not (file-directory-p user-emacs-directory)))
+                   (scope (if eask-file-root "" "global ")))
+               (eask-with-verbosity 'debug
+                 (eask-ignore-errors  ; Again, without Eask-file needed!
+                   (if (or eask-file-root
+                           (eask-file-try-load eask-homedir))
+                       (eask-msg "✓ Loading %sEask file in %s... done!" scope eask-file)
+                     (eask-msg "✗ Loading %sEask file... missing!" scope)))
+                 (eask-msg ""))
+               (package-activate-all)
+               (ignore-errors (make-directory package-user-dir t))
+               (eask-with-verbosity 'debug (eask--load-config))
+               (eask--with-hooks ,@body))))
           (t
            (eask--setup-home nil  ; `nil' is the `default-directory'
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
                (eask-with-verbosity 'debug
-                 (if (eask-file-try-load "./")
+                 (if (eask-file-try-load default-directory)
                      (eask-msg "✓ Loading Eask file in %s... done!" eask-file)
                    (eask-msg "✗ Loading Eask file... missing!"))
                  (eask-msg ""))
@@ -240,6 +251,7 @@ Argument BODY are forms for execution."
                  (package-activate-all)
                  (ignore-errors (make-directory package-user-dir t))
                  (eask--silent (eask-setup-paths))
+                 (eask-with-verbosity 'debug (eask--load-config))
                  (eask--with-hooks ,@body))))))))))
 (defvar eask-package            nil)
 (defvar eask-package-desc       nil) (defvar eask-package-descriptor nil)
@@ -463,7 +475,10 @@ will return `lint/checkdoc' with a dash between two subcommands."
                                     (list script-file))
                  "/"))))
 (defun eask-special-p ()
-  "Return t if the command that can be run without Eask-file existence."
+  "Return t if the command that can be run without Eask-file existence.
+
+These commands will first respect the current workspace.  If the current
+workspace has no valid Eask-file; it will load global workspace instead."
   (member (eask-command) '("init/cask" "init/eldev" "init/keg"
                            "init/source"
                            "bump" "cat" "keywords"
@@ -1120,6 +1135,18 @@ This uses function `locate-dominating-file' to look up directory tree."
   (when-let* ((files (eask--find-files start-path))
               (file (car files)))
     (eask--unsilent (eask-file-load file))))
+(defun eask--load-config ()
+  "Load configuration if valid."
+  (let ((inhibit-config (eask-quick-p)))
+    (eask-with-progress
+      (ansi-green "Loading configuration... ")
+      (eask-with-verbosity 'all
+        (unless inhibit-config
+          (when (version<= "27" emacs-version)
+            (load early-init-file t))
+          (load eask-dot-emacs-file t)
+          (load user-init-file t)))
+      (ansi-green (if inhibit-config "skipped ✗" "done ✓")))))
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
@@ -2204,6 +2231,8 @@ Argument VERSION is a string represent the version number of this package."
 ;; ~/lisp/core/status.el
 (declare-function ansi-bright-black "ext:ansi.el")
 (declare-function ansi-underscore "ext:ansi.el")
+(defvar eask--status-info-count 0
+  "Count of the stratus info.")
 (defun eask--environment-name ()
   "Get the working environment name."
   (cond ((eask-global-p) "global (~/)")
@@ -2214,11 +2243,39 @@ Argument VERSION is a string represent the version number of this package."
   (eask-println "")
   (eask-println (ansi-underscore title))
   (eask-println ""))
-(defun eask--print-info (pair)
-  "Print environment info PAIR."
-  (let ((title   (eask-2str (car pair)))
-        (content (eask-2str (cdr pair))))
-    (eask-println "   %-22s %s" title (ansi-bright-black content))))
+(defun eask--print-info (fmt pair)
+  "Print environment info with FMT and PAIR."
+  (let ((title   (eask-2str (nth 0 pair)))
+        (content (eask-2str (nth 1 pair)))
+        (note    (eask-2str (or (nth 2 pair) ""))))
+    (eask-println fmt
+                  title
+                  (ansi-bright-black content)
+                  note)))
+(defun eask--list-max-length (lst index)
+  "Return the LST max length by its INDEX."
+  (let ((max-len 0)
+        (max-current))
+    (dolist (data lst)
+      (setq max-current (eask-2str (nth index data))
+            max-current (pcase index
+                          (1 (ansi-bright-black max-current))
+                          (_ max-current))
+            max-len (max (length max-current) max-len)))
+    max-len))
+(defun eask--print-infos (lst)
+  "Print environment info LST."
+  (let* ((len-0 (eask-2str (eask--list-max-length lst 0)))
+         (len-1 (eask-2str (+ (eask--list-max-length lst 1) 2)))
+         (fmt (concat "   %-21s   %-" len-1 "s   %s")))
+    (dolist (pair lst)
+      (when pair
+        (eask--print-info fmt pair)
+        (cl-incf eask--status-info-count)))))
+(defun eask--status-file-dir (path)
+  "Return file directory status from PATH."
+  (unless (file-exists-p path)
+    (ansi-red "(missing)")))
 
 ;; ~/lisp/core/uninstall.el
 (defun eask--uninstall-packages(names)
