@@ -433,25 +433,25 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
 Arguments FNC and ARGS are used for advice `:around'."
   (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
 (defconst eask-has-colors (getenv "EASK_HASCOLORS")
-  "Return non-nil if terminal support colors.")
+  "Return non-nil if terminal supports colors.")
 (defconst eask-homedir (getenv "EASK_HOMEDIR")
-  "Eask temporary storage.")
+  "Eask's home directory path.")
 (defconst eask-invocation (getenv "EASK_INVOCATION")
-  "Eask invocation program.")
+  "Eask's invocation program path.")
 (defconst eask-is-pkg (getenv "EASK_IS_PKG")
-  "Eask is pkg.")
-(defconst eask-rest-args
+  "Return non-nil if Eask is packaged.")
+(defconst eask-rest
   (let ((args (getenv "EASK_REST_ARGS")))
-    (setq args (split-string args ","))
+    (setq args (ignore-errors (split-string args ",")))
     args)
-  "Eask arguments in list after command separator `--'.
+  "Eask's arguments after command separator `--'; return a list.
 
-If the argument is `-- hello world'; it will return `(hello world)'.")
-(defun eask-rest-args ()
-  "Eask arguments in string after command separator `--'.
+If the argument is `-- arg0 arg1'; it will return `(arg0 arg1)'.")
+(defun eask-rest ()
+  "Eask's arguments after command separator `--'; return a string.
 
-If the argument is `-- hello world'; it will return `hello world'."
-  (mapconcat #'identity eask-rest-args " "))
+If the argument is `-- arg0 arg1'; it will return `arg0 arg1'."
+  (mapconcat #'identity eask-rest " "))
 (defconst eask-argv argv
   "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
 (defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
@@ -3237,7 +3237,7 @@ be assigned to variable `checkdoc-create-error-function'."
     ;;
     ;; We must split up all commands!
     (setq command (eask-s-replace " && " "\n" command)))
-  (setq command (concat command " " (eask-rest-args)))
+  (setq command (concat command " " (eask-rest)))
   (write-region (concat command "\n") nil eask--run-file t))
 (defun eask--unmatched-scripts (scripts)
   "Return a list of SCRIPTS that cannot be found in `eask-scripts'."
