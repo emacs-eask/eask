@@ -440,6 +440,18 @@ Arguments FNC and ARGS are used for advice `:around'."
   "Eask invocation program.")
 (defconst eask-is-pkg (getenv "EASK_IS_PKG")
   "Eask is pkg.")
+(defconst eask-rest-args
+  (let ((args (getenv "EASK_REST_ARGS")))
+    (setq args (split-string args ","))
+    args)
+  "Eask arguments in list after command separator `--'.
+
+If the argument is `-- hello world'; it will return `(hello world)'.")
+(defun eask-rest-args ()
+  "Eask arguments in string after command separator `--'.
+
+If the argument is `-- hello world'; it will return `hello world'."
+  (mapconcat #'identity eask-rest-args " "))
 (defconst eask-argv argv
   "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
 (defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
@@ -3225,6 +3237,7 @@ be assigned to variable `checkdoc-create-error-function'."
     ;;
     ;; We must split up all commands!
     (setq command (eask-s-replace " && " "\n" command)))
+  (setq command (concat command " " (eask-rest-args)))
   (write-region (concat command "\n") nil eask--run-file t))
 (defun eask--unmatched-scripts (scripts)
   "Return a list of SCRIPTS that cannot be found in `eask-scripts'."
