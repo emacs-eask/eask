@@ -63,10 +63,6 @@ Argument BODY are forms for execution."
   "Execute BODY with message."
   (declare (indent 0) (debug t))
   `(let (inhibit-message) ,@body))
-(defcustom eask-buffer-name "*eask*"
-  "Buffer name is used for temporary storage throughout the life cycle."
-  :type 'string
-  :group 'eask)
 (defmacro eask-with-buffer (&rest body)
   "Create a temporary buffer (for this program), and evaluate BODY there."
   (declare (indent 0) (debug t))
@@ -614,6 +610,8 @@ and INHERIT-INPUT-METHOD see function `read-string' for more information."
 (defun eask--column-at-point (point)
   "Get column at POINT."
   (save-excursion (goto-char point) (current-column)))
+(defconst eask-buffer-name "*eask*"
+  "Buffer name is used for temporary storage throughout the life cycle.")
 (defun eask-progress-seq (prefix sequence suffix func)
   "Shorthand to progress SEQUENCE of task.
 
