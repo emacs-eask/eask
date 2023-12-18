@@ -63,6 +63,18 @@ Argument BODY are forms for execution."
   "Execute BODY with message."
   (declare (indent 0) (debug t))
   `(let (inhibit-message) ,@body))
+(defcustom eask-buffer-name "*eask*"
+  "Buffer name is used for temporary storage throughout the life cycle."
+  :type 'string
+  :group 'eask)
+(defmacro eask-with-buffer (&rest body)
+  "Create a temporary buffer (for this program), and evaluate BODY there."
+  (declare (indent 0) (debug t))
+  `(with-current-buffer (get-buffer-create ,eask-buffer-name) ,@body))
+(defmacro eask-with-temp-buffer (&rest body)
+  "Create a temporary buffer (for this program), and evaluate BODY there."
+  (declare (indent 0) (debug t))
+  `(eask-with-buffer (erase-buffer) ,@body))
 (defcustom eask-elapsed-time nil
   "Log with elapsed time."
   :type 'boolean
@@ -595,6 +607,13 @@ Argument PROMPT and all optional arguments INITIAL-INPUT, HISTORY, DEFAULT-VALUE
 and INHERIT-INPUT-METHOD see function `read-string' for more information."
   (let ((str (read-string prompt initial-input history default-value inherit-input-method)))
     (eask-s-replace "\"" "" str)))
+(defun eask--goto-line (line)
+  "Go to LINE."
+  (goto-char (point-min))
+  (forward-line (1- line)))
+(defun eask--column-at-point (point)
+  "Get column at POINT."
+  (save-excursion (goto-char point) (current-column)))
 (defun eask-progress-seq (prefix sequence suffix func)
   "Shorthand to progress SEQUENCE of task.
 
@@ -1689,9 +1708,6 @@ variable we use to test validation."
 (defun eask--pretty-json (json)
   "Return pretty JSON."
   (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
-(defun eask--column-at-point (point)
-  "Get column at POINT."
-  (save-excursion (goto-char point) (current-column)))
 (defun eask--load-buffer ()
   "Return the current file loading session."
   (car (cl-remove-if-not
@@ -3012,24 +3028,39 @@ be assigned to variable `checkdoc-create-error-function'."
       (eask-msg "No issues found"))))
 
 ;; ~/lisp/lint/indent.el
-(defun eask--undo-lines (undo-list)
-  "Return list of lines changed in UNDO-LIST."
-  (let ((lines))
+(defun eask--undo-pos (entry)
+  "Return the undo pos from ENTRY."
+  (cl-typecase (car entry)
+    (number (car entry))
+    (string (abs (cdr entry)))))
+(defun eask--undo-infos (undo-list)
+  "Return list of infos in UNDO-LIST."
+  (let ((infos))
     (dolist (elm undo-list)
-      (when (and (consp elm) (numberp (cdr elm)))
-        (push (line-number-at-pos (abs (cdr elm))) lines)))
-    (reverse lines)))
+      (when-let* ((pos (eask--undo-pos elm))
+                  (line (line-number-at-pos pos))
+                  (expected (progn (eask--goto-line line)
+                                   (current-indentation))))
+        (push (list line expected) infos)))
+    infos))
 (defun eask--indent-lint-file (file)
   "Lint indent for FILE."
   (eask-msg "")
   (eask-msg "`%s` with indent-lint" (ansi-green (eask-root-del file)))
   (find-file file)
-  (let ((tick (buffer-modified-tick)))
+  (let ((tick (buffer-modified-tick))
+        (bs (buffer-string)))
+    (eask-with-temp-buffer (insert bs))
     (eask--silent (indent-region (point-min) (point-max)))
     (if (/= tick (buffer-modified-tick))
         ;; Indentation changed: warn for each line.
-        (dolist (line (eask--undo-lines buffer-undo-list))
-          (eask-report "%s:%s: mismatch indentation" (buffer-name) line))
+        (dolist (info (eask--undo-infos buffer-undo-list))
+          (let* ((line    (nth 0 info))
+                 (column  (nth 1 info))
+                 (current (eask-with-buffer
+                            (eask--goto-line line) (current-indentation))))
+            (eask-report "%s:%s: Expected indentation is %s but found %s"
+                         (buffer-name) line column current)))
       (eask-log "No mismatch indentation found"))))
 
 ;; ~/lisp/lint/keywords.el
