@@ -718,6 +718,17 @@ Arguments FNC and ARGS are used for advice `:around'."
                   (local-archive-p "skipped ✗")
                   (t               "failed ✗")))))
       (when download-p (eask-pkg-init t)))))
+(defun eask-use-legacy-package-build ()
+  "Return t if using the legacy `package-build' package."
+  (version< emacs-version "27.1"))
+(defun eask-load-legacy-package-build ()
+  "Load the legacy `package-build' package."
+  (when (eask-use-legacy-package-build)
+    (add-to-list 'load-path
+                 (format "%sextern/package-build/%s/"
+                         eask-lisp-root
+                         emacs-major-version)
+                 t)))
 (defun eask--update-exec-path ()
   "Add all bin directory to the variable `exec-path'."
   (dolist (entry (directory-files package-user-dir t directory-files-no-dot-files-regexp))
