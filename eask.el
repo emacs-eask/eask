@@ -1,11 +1,11 @@
 ;;; eask.el --- Core Eask APIs, for Eask CLI development  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2023  Shen, Jen-Chieh
+;; Copyright (C) 2023-2024  Shen, Jen-Chieh
 
 ;; Author: Shen, Jen-Chieh <jcs090218@gmail.com>
 ;; Maintainer: Shen, Jen-Chieh <jcs090218@gmail.com>
 ;; URL: https://github.com/emacs-eask/eask
-;; Version: 0.8.7
+;; Version: 0.9.2
 ;; Package-Requires: ((emacs "26.1") (dash "2.14.1"))
 ;; Keywords: lisp eask api
 
