@@ -501,7 +501,7 @@ These commands will first respect the current workspace.  If the current
 workspace has no valid Eask-file; it will load global workspace instead."
   (member (eask-command) '("init/cask" "init/eldev" "init/keg"
                            "init/source"
-                           "bump" "cat" "keywords"
+                           "bump" "cat" "keywords" "repl"
                            "generate/ignore" "generate/license"
                            "test/melpazoid")))
 (defun eask-checker-p ()
@@ -2265,6 +2265,23 @@ Argument VERSION is a string represent the version number of this package."
     (eask-msg "")
     (eask-info "(Total of %s package%s reinstalled, %s skipped)"
                installed s skipped)))
+
+;; ~/lisp/core/repl.el
+(defvar eask--repl-old-pos nil
+  "Record the last position to output on the screen for the `ielm' buffer.")
+(defun eask--repl-output ()
+  "Print the REPL result to screen."
+  (unless eask--repl-old-pos (setq eask--repl-old-pos (point-min)))
+  (with-current-buffer "*ielm*"
+    (goto-char eask--repl-old-pos)
+    (while (not (eobp))
+      (let ((line (thing-at-point 'line t)))
+        (unless (string-prefix-p "ELISP> " line)
+          (eask-print line)))
+      (forward-line 1)
+      (end-of-line))
+    ;; Record last output position
+    (setq eask--repl-old-pos (point))))
 
 ;; ~/lisp/core/search.el
 (defun eask--search-packages (query)
