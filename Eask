@@ -1,5 +1,5 @@
 (package "eask"
-         "0.8.7"
+         "0.9.4"
          "Core Eask APIs, for Eask CLI development")
 
 (website-url "https://github.com/emacs-eask/eask")
