@@ -12,9 +12,9 @@
 (files "eask-api.el"
        "eask-core.el")
 
-(source "gnu")
-(source "melpa")
-(source "jcs-elpa")
+(source 'gnu)
+(source 'melpa)
+(source 'jcs-elpa)
 
 (depends-on "emacs" "26.1")
 (depends-on "dash")
