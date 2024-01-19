@@ -30,7 +30,7 @@ jobs:
 
     - uses: jcs090218/setup-emacs@master
       with:
-        version: 29.1
+        version: ${{ vars.EMACS_VER }}
 
     - uses: emacs-eask/setup-eask@master
       with:
