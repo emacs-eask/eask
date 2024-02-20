@@ -2188,6 +2188,21 @@ is the deepness of the dependency nested level we want to go."
 
 ;; ~/lisp/core/load.el
 
+;; ~/lisp/core/loc.el
+(defvar eask-loc-lines 0)
+(defvar eask-loc-chars 0)
+(defun eask--loc-file (file)
+  "Insert LOC information for FILE."
+  (unless (file-directory-p file)
+    (let ((lines) (chars))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (setq lines (line-number-at-pos (point-max))
+              chars (point-max)))
+      (cl-incf eask-loc-lines lines)
+      (cl-incf eask-loc-chars chars)
+      (insert (format "| %s | %s | %s |\n" file lines chars)))))
+
 ;; ~/lisp/core/outdated.el
 
 ;; ~/lisp/core/package-directory.el
