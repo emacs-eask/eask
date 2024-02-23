@@ -500,14 +500,14 @@ will return `lint/checkdoc' with a dash between two subcommands."
 
 These commands will first respect the current workspace.  If the current
 workspace has no valid Eask-file; it will load global workspace instead."
-  (member (eask-command) '("init/cask" "init/eldev" "init/keg"
-                           "init/source"
+  (member (eask-command) '("init" "init/source" "init/cask" "init/eldev" "init/keg"
+                           "create/package" "create/elpa"
                            "bump" "cat" "keywords" "repl"
                            "generate/ignore" "generate/license"
                            "test/melpazoid")))
 (defun eask-checker-p ()
   "Return t if running Eask as the checker."
-  (member (eask-command) '("check-eask")))
+  (member (eask-command) '("analyze")))
 (defun eask-script (script)
   "Return full SCRIPT filename."
   (concat eask-lisp-root script ".el"))
@@ -1126,6 +1126,11 @@ Internal used for function `eask--alias-env'."
           (api (intern (concat "eask-f-" keyword)))    ; existing function
           (old (intern (concat "eask--f-" keyword))))  ; variable that holds function pointer
       (funcall func keyword-sym api old))))
+(defun eask-working-directory ()
+  "Return the working directory of the program going to be executed."
+  (cond ((eask-config-p) user-emacs-directory)
+        ((eask-global-p) (expand-file-name "../../" user-emacs-directory))
+        (t default-directory)))
 (defun eask-root-del (filename)
   "Remove Eask file root path from FILENAME."
   (when (stringp filename)
@@ -1711,103 +1716,6 @@ variable we use to test validation."
     (eask-msg ""))
   (setq eask-lint-first-file-p t))
 
-;; ~/lisp/checker/check-eask.el
-(defvar eask-checker--log nil)
-(defvar eask-checker--warnings nil)
-(defvar eask-checker--errors nil)
-(defun eask-checker--pretty-json (json)
-  "Return pretty JSON."
-  (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
-(defun eask-checker--load-buffer ()
-  "Return the current file loading session."
-  (car (cl-remove-if-not
-        (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
-(defun eask-checker--write-json-format (level msg)
-  "Prepare log for JSON format.
-
-For arguments LEVEL and MSG, please see function `eask-checker--write-log' for more
-information."
-  (let* ((bounds (bounds-of-thing-at-point 'sexp))
-         (filename (or load-file-name eask-file))
-         (start (car bounds))
-         (end (cdr bounds))
-         (start-line (if load-file-name (line-number-at-pos start) 0))
-         (start-col  (if load-file-name (eask--column-at-point start) 0))
-         (start-pos  (if load-file-name start 0))
-         (end-line   (if load-file-name (line-number-at-pos end) 0))
-         (end-col    (if load-file-name (eask--column-at-point end) 0))
-         (end-pos    (if load-file-name end 0))
-         (msg (ansi-color-filter-apply msg)))
-    (push `((range . ((start . ((line . ,start-line)
-                                (col  . ,start-col)
-                                (pos  . ,start-pos)))
-                      (end . ((line . ,end-line)
-                              (col  . ,end-col)
-                              (pos  . ,end-pos)))))
-            (filename . ,filename)
-            (message . ,msg))
-          (cl-case level
-            (`error eask-checker--errors)
-            (`warn  eask-checker--warnings)))))
-(defun eask-checker--write-plain-text (level msg)
-  "Prepare log for plain text format.
-
-For arguments LEVEL and MSG, please see function `eask-checker--write-log' for more
-information."
-  (let* ((level-string (cl-case level
-                         (`error "Error")
-                         (`warn  "Warning")))
-         (log (format "%s:%s:%s %s: %s"
-                      (or load-file-name eask-file)
-                      (if load-file-name (line-number-at-pos) 0)
-                      (if load-file-name (current-column) 0)
-                      level-string
-                      msg)))
-    (push (ansi-color-filter-apply log) eask-checker--log)))
-(defun eask-checker--write-log (level msg)
-  "Write the log.
-
-Argument LEVEL and MSG are data from the debug log signal."
-  (unless (string= " *temp*" (buffer-name))  ; avoid error from `package-file' directive
-    (with-current-buffer (or (eask-checker--load-buffer) (buffer-name))
-      (funcall
-       (cond ((eask-json-p) #'eask-checker--write-json-format)
-             (t             #'eask-checker--write-plain-text))
-       level msg))))
-(defun eask-checker--check-file (files)
-  "Lint list of Eask FILES."
-  (let (checked-files content)
-    ;; Linting
-    (dolist (file files)
-      (eask--silent-error
-        (eask--save-load-eask-file file
-            (push file checked-files))))
-
-    ;; Print result
-    (eask-msg "")
-    (cond ((and (eask-json-p)  ; JSON format
-                (or eask-checker--warnings eask-checker--errors))
-           (setq content
-                 (eask-checker--pretty-json (json-encode
-                                             `((warnings . ,eask-checker--warnings)
-                                               (errors   . ,eask-checker--errors)))))
-           (eask-msg content))
-          (eask-checker--log  ; Plain text
-           (setq content
-                 (with-temp-buffer
-                   (dolist (msg (reverse eask-checker--log))
-                     (insert msg "\n"))
-                   (buffer-string)))
-           (mapc #'eask-msg (reverse eask-checker--log)))
-          (t
-           (eask-info "(Checked %s file%s)"
-                      (length checked-files)
-                      (eask--sinr checked-files "" "s"))))
-
-    ;; Output file
-    (when (and content (eask-output))
-      (write-region content nil (eask-output)))))
-
 ;; ~/lisp/clean/all.el
 (defvar eask-no-cleaning-operation-p nil
   "Set to non-nil if there is no cleaning operation done.")
@@ -1888,6 +1796,103 @@ Argument LEVEL and MSG are data from the debug log signal."
 ;; ~/lisp/clean/pkg-file.el
 
 ;; ~/lisp/clean/workspace.el
+
+;; ~/lisp/core/analyze.el
+(defvar eask-analyze--log nil)
+(defvar eask-analyze--warnings nil)
+(defvar eask-analyze--errors nil)
+(defun eask-analyze--pretty-json (json)
+  "Return pretty JSON."
+  (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
+(defun eask-analyze--load-buffer ()
+  "Return the current file loading session."
+  (car (cl-remove-if-not
+        (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
+(defun eask-analyze--write-json-format (level msg)
+  "Prepare log for JSON format.
+
+For arguments LEVEL and MSG, please see function `eask-analyze--write-log' for more
+information."
+  (let* ((bounds (bounds-of-thing-at-point 'sexp))
+         (filename (or load-file-name eask-file))
+         (start (car bounds))
+         (end (cdr bounds))
+         (start-line (if load-file-name (line-number-at-pos start) 0))
+         (start-col  (if load-file-name (eask--column-at-point start) 0))
+         (start-pos  (if load-file-name start 0))
+         (end-line   (if load-file-name (line-number-at-pos end) 0))
+         (end-col    (if load-file-name (eask--column-at-point end) 0))
+         (end-pos    (if load-file-name end 0))
+         (msg (ansi-color-filter-apply msg)))
+    (push `((range . ((start . ((line . ,start-line)
+                                (col  . ,start-col)
+                                (pos  . ,start-pos)))
+                      (end . ((line . ,end-line)
+                              (col  . ,end-col)
+                              (pos  . ,end-pos)))))
+            (filename . ,filename)
+            (message . ,msg))
+          (cl-case level
+            (`error eask-analyze--errors)
+            (`warn  eask-analyze--warnings)))))
+(defun eask-analyze--write-plain-text (level msg)
+  "Prepare log for plain text format.
+
+For arguments LEVEL and MSG, please see function `eask-analyze--write-log' for more
+information."
+  (let* ((level-string (cl-case level
+                         (`error "Error")
+                         (`warn  "Warning")))
+         (log (format "%s:%s:%s %s: %s"
+                      (or load-file-name eask-file)
+                      (if load-file-name (line-number-at-pos) 0)
+                      (if load-file-name (current-column) 0)
+                      level-string
+                      msg)))
+    (push (ansi-color-filter-apply log) eask-analyze--log)))
+(defun eask-analyze--write-log (level msg)
+  "Write the log.
+
+Argument LEVEL and MSG are data from the debug log signal."
+  (unless (string= " *temp*" (buffer-name))  ; avoid error from `package-file' directive
+    (with-current-buffer (or (eask-analyze--load-buffer) (buffer-name))
+      (funcall
+       (cond ((eask-json-p) #'eask-analyze--write-json-format)
+             (t             #'eask-analyze--write-plain-text))
+       level msg))))
+(defun eask-analyze--file (files)
+  "Lint list of Eask FILES."
+  (let (checked-files content)
+    ;; Linting
+    (dolist (file files)
+      (eask--silent-error
+        (eask--save-load-eask-file file
+            (push file checked-files))))
+
+    ;; Print result
+    (eask-msg "")
+    (cond ((and (eask-json-p)  ; JSON format
+                (or eask-analyze--warnings eask-analyze--errors))
+           (setq content
+                 (eask-analyze--pretty-json (json-encode
+                                             `((warnings . ,eask-analyze--warnings)
+                                               (errors   . ,eask-analyze--errors)))))
+           (eask-msg content))
+          (eask-analyze--log  ; Plain text
+           (setq content
+                 (with-temp-buffer
+                   (dolist (msg (reverse eask-analyze--log))
+                     (insert msg "\n"))
+                   (buffer-string)))
+           (mapc #'eask-msg (reverse eask-analyze--log)))
+          (t
+           (eask-info "(Checked %s file%s)"
+                      (length checked-files)
+                      (eask--sinr checked-files "" "s"))))
+
+    ;; Output file
+    (when (and content (eask-output))
+      (write-region content nil (eask-output)))))
 
 ;; ~/lisp/core/archives.el
 (defvar eask-archive--length-name)
@@ -2055,6 +2060,16 @@ The CMD is the command to start a new Emacs session."
                                  "specified")))
           (eask-println (concat "  %-" offset "s (%s)") (car dep) target-version)
           (eask-debug "    Recipe: %s" (car dep)))))))
+
+;; ~/lisp/core/init.el
+(defun eask-init--check-filename (name)
+  "Return non-nil if NAME is a valid Eask-file."
+  (when-let* ((name (file-name-nondirectory (directory-file-name name)))
+              (prefix (cond ((string-prefix-p "Easkfile" name) "Easkfile")
+                            ((string-prefix-p "Eask" name)     "Eask"))))
+    (let ((suffix (car (split-string name prefix t))))
+      (or (null suffix)
+          (string-match-p "^[.][.0-9]*$" suffix)))))
 
 ;; ~/lisp/core/install-deps.el
 
