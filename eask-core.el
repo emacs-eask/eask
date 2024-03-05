@@ -2451,6 +2451,32 @@ Argument VERSION is a string represent the version number of this package."
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
 
+;; ~/lisp/format/elfmt.el
+(declare-function elfmt-buffer "ext:elisp-autofmt.el")
+(defconst eask-format-elfmt--version nil
+  "`elfmt' version.")
+(defun eask-format-elfmt--file (filename)
+  "Run elfmt on FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename)))
+    (with-current-buffer (find-file filename)
+      (elfmt-buffer)
+      (save-buffer)
+      (kill-buffer))))
+
+;; ~/lisp/format/elisp-autofmt.el
+(declare-function elisp-autofmt-buffer "ext:elisp-autofmt.el")
+(defconst eask-format-elisp-autofmt--version nil
+  "`elisp-autofmt' version.")
+(defun eask-format-elisp-autofmt--file (filename)
+  "Run elisp-autofmt on FILENAME."
+  (let* ((filename (expand-file-name filename))
+         (file (eask-root-del filename)))
+    (with-current-buffer (find-file filename)
+      (elisp-autofmt-buffer)
+      (save-buffer)
+      (kill-buffer))))
+
 ;; ~/lisp/generate/workflow/circle-ci.el
 (defun eask-generate-workflow-circle-ci--insert-jobs (version)
   "Insert Circle CI's jobs instruction for specific Emacs' VERSION."
