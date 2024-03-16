@@ -3468,6 +3468,15 @@ Do you want to overwrite it? ")
 
 ;; ~/lisp/test/buttercup.el
 
+;; ~/lisp/test/ecukes.el
+(defun eask-test-ecukes--run (files)
+  "Run ecukes on FILES.
+
+Modified from function `ecukes-cli/run'."
+  (ecukes-load)
+  (ecukes-reporter-use ecukes-cli-reporter)
+  (ecukes-run files))
+
 ;; ~/lisp/test/ert-runner.el
 
 ;; ~/lisp/test/ert.el
