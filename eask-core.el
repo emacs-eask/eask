@@ -495,19 +495,31 @@ will return `lint/checkdoc' with a dash between two subcommands."
       (mapconcat #'identity (append module-names
                                     (list script-file))
                  "/"))))
+(defun eask-command-p (commands)
+  "Return t if COMMANDS is the current command."
+  (member (eask-command) (eask-listify commands)))
 (defun eask-special-p ()
   "Return t if the command that can be run without Eask-file existence.
 
 These commands will first respect the current workspace.  If the current
 workspace has no valid Eask-file; it will load global workspace instead."
-  (member (eask-command) '("init" "init/source" "init/cask" "init/eldev" "init/keg"
-                           "create/package" "create/elpa"
-                           "bump" "cat" "keywords" "repl"
-                           "generate/ignore" "generate/license"
-                           "test/melpazoid")))
+  (eask-command-p '("init" "init/source" "init/cask" "init/eldev" "init/keg"
+                    "create/package" "create/elpa"
+                    "bump" "cat" "keywords" "repl"
+                    "generate/ignore" "generate/license"
+                    "test/melpazoid")))
+(defun eask-execution-p ()
+  "Return t if the command is the execution command.
+
+This is added because we don't want to pollute `error' and `warn' functions."
+  (eask-command-p '("load" "exec" "emacs" "eval" "repl"
+                    "run/script" "run/command")))
 (defun eask-checker-p ()
-  "Return t if running Eask as the checker."
-  (member (eask-command) '("analyze")))
+  "Return t if running Eask as the checker.
+
+Without this flag, the process will be terminated once the error is occurred.
+This flag allows you to run through operations without reporting errors."
+  (eask-command-p '("analyze")))
 (defun eask-script (script)
   "Return full SCRIPT filename."
   (concat eask-lisp-root script ".el"))
