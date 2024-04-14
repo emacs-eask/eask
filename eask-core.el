@@ -2489,6 +2489,73 @@ Argument VERSION is a string represent the version number of this package."
       (save-buffer)
       (kill-buffer))))
 
+;; ~/lisp/generate/test/buttercup.el
+(defun eask-generate-test-buttercup--init (&optional name)
+  "Create new test buffercup project (optional project NAME)."
+  (let ((name (or name (f-filename default-directory)))
+        (test-path (expand-file-name "tests" default-directory)))
+    (when (f-dir? test-path)
+      (eask-error "Directory `tests` already exists."))
+    (message "create %s" (ansi-green (f-filename test-path)))
+    (f-mkdir "tests")
+    (let ((test-file (s-concat  "test-" name ".el")))
+      (message "create  %s" (ansi-green test-file))
+      (with-temp-file (f-join test-path test-file)
+        (insert (format "\
+;;; %s --- Buttercup tests for %s  -*- lexical-binding: t; -*-
+;;; Commentary:
+;;; Code:
+
+(require 'buttercup)
+
+;; Example test!
+(describe \"A suite\"
+  (it \"contains a spec with an expectation\"
+    (expect t :to-be t)))
+
+;;; %s ends here
+" test-file name test-file))))))
+
+;; ~/lisp/generate/test/ecukes.el
+
+;; ~/lisp/generate/test/ert-runner.el
+(defun eask-generate-test-ert-runner--test-helper (&optional name)
+  "Generate test helper for NAME."
+  (with-temp-file (f-join ert-runner-test-path "test-helper.el")
+    (insert (format "\
+;;; test-helper.el --- Helpers for %s
+
+;;; test-helper.el ends here
+" name))))
+
+;; ~/lisp/generate/test/ert.el
+(defvar eask-generate-test-ert-test-path
+  (expand-file-name "test" default-directory)
+  "The default test path.")
+(defun eask-generate-test-ert--init (&optional name)
+  "Create new test project (optional project NAME)."
+  (let* ((name (or name (file-name-nondirectory default-directory)))
+         (dir (file-directory-p eask-generate-test-ert-test-path)))
+    (eask-with-progress
+      (format "create %s folder... " (ansi-green "test"))
+      (ignore-errors (make-directory eask-generate-test-ert-test-path t))
+      (if dir "skipped ✗" "done ✓"))
+    (eask-generate-test-ert--create-test-file name)))
+(defun eask-generate-test-ert--create-test-file (name)
+  "Generate test file by NAME."
+  (let* ((test-file (concat name "-test.el"))
+         (full-test-file (expand-file-name test-file eask-generate-test-ert-test-path))
+         (ext (file-exists-p full-test-file)))
+    (eask-with-progress
+      (format "  create %s... " (ansi-green test-file))
+      (with-temp-file full-test-file
+        (insert (format "\
+;;; %s --- Tests for %s
+
+;;; %s ends here
+" test-file name test-file)))
+      (if ext "skipped ✗" "done ✓"))))
+
 ;; ~/lisp/generate/workflow/circle-ci.el
 (defun eask-generate-workflow-circle-ci--insert-jobs (version)
   "Insert Circle CI's jobs instruction for specific Emacs' VERSION."
