@@ -392,7 +392,11 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   :type 'hook
   :group 'eask)
 (defcustom eask-dist-path "dist"
-  "Name of default target directory for building packages."
+  "Default path where to place the package artifact."
+  :type 'string
+  :group 'eask)
+(defcustom eask-docs-path "docs/public/"
+  "Default path where to place the documentation."
   :type 'string
   :group 'eask)
 (defcustom eask-recipe-path "recipes"
@@ -2026,6 +2030,18 @@ The CMD is the command to start a new Emacs session."
                skipped)))
 
 ;; ~/lisp/core/concat.el
+
+;; ~/lisp/core/docs.el
+(require 'el2org nil t)
+(defun eask-docs--to-html (el-file)
+  "Generate html file from EL-FILE."
+  (interactive)
+  (let* ((filename (file-name-nondirectory el-file))
+         (html-file (expand-file-name (concat (file-name-sans-extension filename)
+                                              ".html")
+                                      eask-docs-path)))
+    (eask-with-verbosity 'debug
+      (el2org-generate-file el-file nil 'html html-file t))))
 
 ;; ~/lisp/core/emacs.el
 
