@@ -1538,7 +1538,8 @@ For arguments MSG and ARGS, please see function `eask-print' for the detials."
 
 For arguments MSG and ARGS, please see function `eask--format-paint-kwds' for
 the detials."
-  (message (apply #'eask--format-paint-kwds msg args)))
+  (apply #'eask-write msg args)
+  (eask-princ "\n" t))
 (defun eask-write (msg &rest args)
   "Like the function `eask-msg' but without newline at the end.
 
@@ -2309,6 +2310,8 @@ Argument VERSION is a string represent the version number of this package."
       (when eask-files
         (nconc recipe `(:files ,(append '(:defaults) eask-files))))
       recipe)))
+
+;; ~/lisp/core/recompile.el
 
 ;; ~/lisp/core/refresh.el
 
