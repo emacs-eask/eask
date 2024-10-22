@@ -952,7 +952,7 @@ full detials."
   "Convert string (STR) to number."
   (ignore-errors (string-to-number str)))
 (defun eask--flag (flag)
-  "Return non-nil if FLAG exists.."
+  "Return non-nil if FLAG exists."
   (member (concat "--eask" flag) eask-argv))
 (defun eask--flag-value (flag)
   "Return value for FLAG."
