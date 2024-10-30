@@ -3146,10 +3146,10 @@ be assigned to variable `checkdoc-create-error-function'."
          (errors))
     (eask-lint-first-newline)
     (eask-msg "`%s` with check-declare" (ansi-green file))
-    (setq errors (check-declare-file filename))
+    (setq errors (eask--silent (check-declare-file filename)))
     (if errors
         (with-current-buffer check-declare-warning-buffer
-          (eask-msg (buffer-string)))
+          (eask-report (string-remove-prefix "\n" (buffer-string))))
       (eask-msg "No issues found"))))
 
 ;; ~/lisp/lint/elint.el
