@@ -184,11 +184,11 @@ Argument BODY are forms for execution."
   "Set up config directory in DIR, then execute BODY."
   (declare (indent 1) (debug t))
   `(let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
-          (package-user-dir (expand-file-name "elpa" user-emacs-directory))
-          (early-init-file (locate-user-emacs-file "early-init.el"))
-          (eask-dot-emacs-file (locate-user-emacs-file ".emacs"))
-          (user-init-file (locate-user-emacs-file "init.el"))
-          (custom-file (locate-user-emacs-file "custom.el")))
+          (package-user-dir     (expand-file-name "elpa" user-emacs-directory))
+          (early-init-file      (locate-user-emacs-file "early-init.el"))
+          (eask-dot-emacs-file  (locate-user-emacs-file ".emacs"))
+          (user-init-file       (locate-user-emacs-file "init.el"))
+          (custom-file          (locate-user-emacs-file "custom.el")))
      ,@body))
 (defmacro eask-start (&rest body)
   "Execute BODY with workspace setup."
@@ -200,9 +200,9 @@ Argument BODY are forms for execution."
          (eask--handle-global-options)
          (cond
           ((eask-config-p)
-           (let ((early-init-file (locate-user-emacs-file "early-init.el"))
+           (let ((early-init-file     (locate-user-emacs-file "early-init.el"))
                  (eask-dot-emacs-file (locate-user-emacs-file "../.emacs"))
-                 (user-init-file (locate-user-emacs-file "init.el")))
+                 (user-init-file      (locate-user-emacs-file "init.el")))
              ;; We accept Eask-file in `config' scope, but it shouldn't be used
              ;; for the sandbox.
              (eask-with-verbosity 'debug
@@ -517,7 +517,10 @@ workspace has no valid Eask-file; it will load global workspace instead."
 
 This is added because we don't want to pollute `error' and `warn' functions."
   (eask-command-p '("load" "exec" "emacs" "eval" "repl"
-                    "run/script" "run/command")))
+                    "run/script" "run/command"
+                    ;; NOTE: These test commands handle the exit code themselves;
+                    ;; therefore, we don't need to handle it for them!
+                    "test/ert" "test/ert-runner")))
 (defun eask-checker-p ()
   "Return t if running Eask as the checker.
 
