@@ -3075,7 +3075,7 @@ If no found the Keg file, returns nil."
     (when (file-exists-p link-path)
       (eask-msg "")
       (eask-with-progress
-        (ansi-yellow "!! The link is already presented; override the existing link... ")
+        (ansi-yellow "!! The link is already present; overriding the existing link... ")
         (eask-link-delete-symlink link-path)
         (ansi-yellow "done !!")))
     (make-symbolic-link source link-path)
