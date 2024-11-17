@@ -593,7 +593,7 @@ The function `directory-empty-p' only exists 28.1 or above; copied it."
          (null (directory-files dir nil directory-files-no-dot-files-regexp t)))))
 (defun eask--guess-package-name (basename)
   "Convert the BASENAME to a valid, commonly seen package name."
-  (when-let ((name (ignore-errors (downcase basename))))
+  (when-let* ((name (ignore-errors (downcase basename))))
     (setq name (eask-s-replace "emacs-" "" name)
           name (eask-s-replace "-emacs" "" name)
           name (replace-regexp-in-string "[.-]el$" "" name))
@@ -930,19 +930,19 @@ otherwise, we retrieve it from the variable `package-archive-contents'."
 
 For arguments NAME and CURRENT, please see function `eask-package-desc' for
 full detials."
-  (when-let ((desc (eask-package-desc name current)))
+  (when-let* ((desc (eask-package-desc name current)))
     (package-desc-version desc)))
 (defun eask-package--version-string (pkg)
   "Return PKG's version."
-  (if-let ((version (or (eask-package--version pkg t)
-                        (eask-package--version pkg nil))))
+  (if-let* ((version (or (eask-package--version pkg t)
+                         (eask-package--version pkg nil))))
       (package-version-join version)
     ;; Just in case, but this should never happens!
     "0"))
 (defun eask-package-desc-url ()
   "Return url from package descriptor."
   (when eask-package-desc
-    (when-let ((extras (package-desc-extras eask-package-desc)))
+    (when-let* ((extras (package-desc-extras eask-package-desc)))
       (cdr (assoc :url extras)))))
 (defun eask-package-desc-keywords ()
   "Return keywords from package descriptor."
@@ -1323,7 +1323,7 @@ version number.  DESCRIPTION is the package description."
     (if (file-exists-p eask-package-file)
         (eask--try-construct-package-desc eask-package-file)
       (eask-warn "Package-file seems to be missing `%s'" file))
-    (when-let
+    (when-let*
         (((and (not eask-package-descriptor)  ; prevent multiple definition error
                (not eask-package-desc)))      ; check if constructed
          (pkg-file (eask-pkg-el)))
@@ -1452,7 +1452,7 @@ ELPA)."
   (>= eask-verbosity (eask--verb2lvl symbol)))
 (defun eask--ansi (symbol string)
   "Paint STRING with color defined by log level (SYMBOL)."
-  (if-let ((ansi-function (cdr (assq symbol eask-level-color))))
+  (if-let* ((ansi-function (cdr (assq symbol eask-level-color))))
       (funcall ansi-function string)
     string))
 (defun eask--format (prefix fmt &rest args)
@@ -1605,7 +1605,7 @@ Arguments FNC and ARGS are used for advice `:around'."
   (cl-remove-if-not (lambda (filename) (string= (file-name-extension filename) "el")) (eask-package-files)))
 (defun eask-package-elc-files ()
   "Return package files' elc in workspace."
-  (when-let ((elcs (mapcar (lambda (elm) (concat elm "c")) (eask-package-el-files))))
+  (when-let* ((elcs (mapcar (lambda (elm) (concat elm "c")) (eask-package-el-files))))
     (setq elcs (cl-remove-if-not (lambda (elm) (file-exists-p elm)) elcs))
     elcs))
 (defun eask-package-multi-p ()
@@ -2192,8 +2192,8 @@ contents."
     (if (= depth 0)
         (eask-msg (eask-list--align depth " %-80s") name version archive summary)
       (eask-msg (eask-list--align depth) name "" "" ""))
-    (when-let ((reqs (package-desc-reqs desc))
-               ((< depth max-depth)))
+    (when-let* ((reqs (package-desc-reqs desc))
+                ((< depth max-depth)))
       (dolist (req reqs)
         (eask-list--print-pkg (car req) (1+ depth) max-depth pkg-alist)))))
 (defun eask-list--version-list (pkg-alist)
@@ -2296,7 +2296,7 @@ Argument VERSION is a string represent the version number of this package."
 ;; ~/lisp/core/recipe.el
 (defun eask-recipe-string ()
   "Return the recipe format in string."
-  (when-let ((url (eask-package-desc-url)))
+  (when-let* ((url (eask-package-desc-url)))
     (let* ((fetcher (cond ((string-match-p "github.com" url) 'github)
                           ((string-match-p "gitlab.com" url) 'gitlab)
                           (t 'git)))
@@ -2457,7 +2457,7 @@ Argument VERSION is a string represent the version number of this package."
     upgrades))
 (defun eask-upgrade--package-all ()
   "Upgrade for archive packages."
-  (if-let ((upgrades (eask-package--upgrades)))
+  (if-let* ((upgrades (eask-package--upgrades)))
       (progn
         (mapc #'eask-upgrade--package upgrades)
         (eask-msg "")
@@ -2794,14 +2794,14 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                          (insert "\n " (eask-2str file))))
                      (insert ")\n"))
 
-                   (when-let ((pkg-desc (eask--cask-package-descriptor)))
+                   (when-let* ((pkg-desc (eask--cask-package-descriptor)))
                      (insert "\n")
                      (insert "(package-descriptor \"" (eask-2str pkg-desc) "\")\n"))
 
                    (insert "\n")
                    (insert "(script \"test\" \"echo \\\"Error: no test specified\\\" && exit 1\")\n")
 
-                   (when-let ((sources (eask--cask-sources)))
+                   (when-let* ((sources (eask--cask-sources)))
                      (insert "\n")
                      (dolist (source sources)
                        (insert "(source '" (eask-2str (cadr source)) ")\n")))
@@ -2811,13 +2811,13 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                    (unless (eask--cask-reqs-no-emacs)
                      (insert "\n"))  ; Make sure end line exists!
 
-                   (when-let ((pkgs (eask--cask-reqs-no-emacs)))
+                   (when-let* ((pkgs (eask--cask-reqs-no-emacs)))
                      (insert "\n")
                      (dolist (pkg pkgs)
                        (let ((val (mapconcat #'eask-2str (cdr pkg) "\" \"")))
                          (insert "(depends-on \"" val "\")\n"))))
 
-                   (when-let ((pkgs (eask--cask-reqs-dev-no-emacs)))
+                   (when-let* ((pkgs (eask--cask-reqs-dev-no-emacs)))
                      (insert "\n")
                      (insert "(development\n")
                      (dolist (pkg pkgs)
@@ -2964,7 +2964,7 @@ If no found the Keg file, returns nil."
                                   entry-point)))
                    (insert content)
 
-                   (when-let ((scripts (alist-get 'scripts contents)))
+                   (when-let* ((scripts (alist-get 'scripts contents)))
                      (dolist (script scripts)
                        (let* ((cmds (cadr script))
                               (_ (pop cmds))
@@ -2972,7 +2972,7 @@ If no found the Keg file, returns nil."
                          (insert "(script \"" (eask-2str (car script))
                                  "\" " (prin1-to-string cmds) ")\n"))))
 
-                   (when-let ((sources (alist-get 'sources contents)))
+                   (when-let* ((sources (alist-get 'sources contents)))
                      (insert "\n")
                      (dolist (source sources)
                        (insert "(source '" (eask-2str source) ")\n")))
@@ -2982,12 +2982,12 @@ If no found the Keg file, returns nil."
                  (unless (alist-get 'packages contents)
                    (insert "\n"))  ; Make sure end line exists!
 
-                 (when-let ((pkgs (alist-get 'packages contents)))
+                 (when-let* ((pkgs (alist-get 'packages contents)))
                    (insert "\n")
                    (dolist (pkg pkgs)
                      (insert "(depends-on \"" (eask-2str (car pkg)) "\")\n")))
 
-                 (when-let ((devs (alist-get 'devs contents)))
+                 (when-let* ((devs (alist-get 'devs contents)))
                    (insert "\n")
                    (insert "(development\n")
                    (dolist (dev devs)
@@ -3537,8 +3537,8 @@ The argument EXISTS is use to search for correct position to insert new source."
   "Ask source overwrite if needed.
 
 Arguments NAME and URL are main arguments for this command."
-  (if-let ((exists (assoc name package-archives))
-           (old-url (cdr exists)))
+  (if-let* ((exists (assoc name package-archives))
+            (old-url (cdr exists)))
       (cond ((string= old-url url)
              (eask-info "(Nothing has changed due to the URLs are the same)"))
             ((yes-or-no-p
