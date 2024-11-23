@@ -824,7 +824,7 @@ scope of the dependencies (it's either `production' or `development')."
 
 If the argument FORCE is non-nil, force initialize packages in this session."
   (when (or (not package--initialized) (not package-archive-contents) force
-            ;; XXX we need to initialize once in global scope since most Emacs
+            ;; XXX: we need to initialize once in global scope since most Emacs
             ;; configuration would likely to set `package-archives' variable
             ;; themselves.
             (and (eask-config-p) (not eask--package-initialized)))
@@ -886,7 +886,7 @@ Argument PKG is the name of the package."
         (eask-with-progress
           (format "  - %sInstalling %s (%s)... " eask--action-prefix name version)
           (eask-with-verbosity 'debug
-            ;; XXX Without ignore-errors guard, it will trigger error
+            ;; XXX: Without ignore-errors guard, it will trigger error
             ;;
             ;;   Can't find library xxxxxxx.el
             ;;
@@ -1964,12 +1964,11 @@ Argument LEVEL and MSG are data from the debug log signal."
 ;; ~/lisp/core/cat.el
 
 ;; ~/lisp/core/compile.el
-(defconst eask-compile--log-buffer-name "*Compile-Log*"
-  "Byte-compile log buffer name.")
+(require 'bytecomp nil t)
 (defun eask-compile--print-log ()
   "Print `*Compile-Log*' buffer."
-  (when (get-buffer eask-compile--log-buffer-name)
-    (with-current-buffer eask-compile--log-buffer-name
+  (when (get-buffer byte-compile-log-buffer)
+    (with-current-buffer byte-compile-log-buffer
       (if (and (eask-clean-p) (eask-strict-p))
           (eask-error (buffer-string))  ; Exit with error code!
         (eask-print-log-buffer))
@@ -2009,13 +2008,13 @@ The CMD is the command to start a new Emacs session."
          (content (eask-compile--byte-compile-file-external-content filename cmd)))
     (if (string-empty-p content)
         t  ; no error, good!
-      (with-current-buffer (get-buffer-create eask-compile--log-buffer-name)
+      (with-current-buffer (get-buffer-create byte-compile-log-buffer)
         (insert content)))))
 (defun eask-compile--byte-compile-file (filename)
   "Byte compile FILENAME."
   ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
   ;; next byte-compile task.
-  (ignore-errors (kill-buffer eask-compile--log-buffer-name))
+  (ignore-errors (kill-buffer byte-compile-log-buffer))
   (let* ((filename (expand-file-name filename))
          (result))
     (eask-with-progress
@@ -2025,7 +2024,7 @@ The CMD is the command to start a new Emacs session."
                          (eask-compile--byte-compile-file-external filename)
                        (byte-compile-file filename))
               result (eq result t)))
-      (if result "done ✓" "skipped ✗"))
+      (unless byte-compile-verbose (if result "done ✓" "skipped ✗")))
     (eask-compile--print-log)
     result))
 (defun eask-compile--files (files)
@@ -2034,7 +2033,7 @@ The CMD is the command to start a new Emacs session."
          (compiled (length compiled))
          (skipped (- (length files) compiled)))
     ;; XXX: Avoid last newline from the log buffer!
-    (unless (get-buffer eask-compile--log-buffer-name)
+    (unless (get-buffer byte-compile-log-buffer)
       (eask-msg ""))
     (eask-info "(Total of %s file%s compiled, %s skipped)" compiled
                (eask--sinr compiled "" "s")
