@@ -3585,6 +3585,16 @@ Modified from function `ecukes-cli/run'."
   (ecukes-run files))
 
 ;; ~/lisp/test/ert-runner.el
+(defun eask-test-ert-runner--run (fnc &rest args)
+  "Run around function `ert-runner/run'.
+
+Arguments FNC and ARGS are used for advice `:around'.
+
+Handle the argument ARGS when command arguments are specified."
+  (let* ((patterns (eask-args))
+         (files (eask-expand-file-specs patterns)))
+    (setq args files))
+  (apply fnc args))
 
 ;; ~/lisp/test/ert.el
 (defvar eask-test-ert--message-loop nil
