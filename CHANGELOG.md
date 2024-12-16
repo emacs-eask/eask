@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+>
+> The `CHANGELOG.md` is no longer being used since the release should follow the `emacs-eask/cli`'s version.
+
 # Change Log
 
 All notable changes to this project will be documented in this file.
