@@ -1383,9 +1383,10 @@ argument COMMAND."
   (setq location (eask-source-url name location))
   (unless location (eask-error "Unknown package archive `%s'" name))
   (add-to-list 'package-archives (cons name location) t))
-(defun eask-f-source-priority (archive-id &optional priority)
-  "Add PRIORITY for to ARCHIVE-ID."
-  (add-to-list 'package-archive-priorities (cons archive-id priority) t))
+(defun eask-f-source-priority (name &optional priority)
+  "Add PRIORITY for to NAME."
+  (when (symbolp name) (setq name (eask-2str name)))  ; ensure to string, accept symbol
+  (add-to-list 'package-archive-priorities (cons name priority) t))
 (defun eask--setup-dependencies ()
   "Setup dependencies list."
   (setq eask-depends-on (reverse eask-depends-on)
