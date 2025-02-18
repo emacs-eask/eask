@@ -24,7 +24,7 @@ Generally, you would not want to call any of these functions or use any of
 these variables from your Emacs editor environment. Unless you are extending
 Eask's core functionalities.
 
-> [!IMPORTANT]
+> [!NOTE]
 >
 > The core of this file (`eask-core.el`) is generated from the [emacs-eask/cli][]; therefore, please avoid directly modifying its contents in this repository!
 
