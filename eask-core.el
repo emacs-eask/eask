@@ -870,17 +870,6 @@ Argument PKG is the name of the package."
         (eask-pkg-init)
         (unless (eask-package-installable-p pkg)
           (eask-error "Package not installable `%s'; make sure the package archive (source) is included" pkg))))
-     ((when-let* ((desc (eask-package-desc pkg))
-                  (req-emacs (assoc 'emacs (package-desc-reqs desc)))
-                  (req-emacs (package-version-join (nth 0 (cdr req-emacs))))
-                  ((version< emacs-version req-emacs)))
-        (if (eask-strict-p)
-            (eask-error "  - %sSkipping %s (%s)... it requires Emacs %s and above ✗"
-                        eask--action-prefix
-                        pkg (eask-package--version-string pkg) req-emacs)
-          (eask-msg "  - %sSkipping %s (%s)... it requires Emacs %s and above ✗"
-                    eask--action-prefix
-                    name version (ansi-yellow req-emacs)))))
      (t
       (eask--pkg-process pkg
         (eask-with-progress
