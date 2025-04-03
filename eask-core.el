@@ -307,6 +307,8 @@ Argument BODY are forms for execution."
            ,@error)))))
 (defvar eask-depends-on-recipe-p nil
   "Set to t if package depends on recipe.")
+(defvar eask--local-archive-name "local"
+  "The local archive name.")
 (defcustom eask-verbosity 3
   "Log level for all messages; 4 means trace most anything, 0 means nothing.
 
@@ -716,7 +718,8 @@ Arguments FNC and ARGS are used for advice `:around'."
            (url (format "https://raw.githubusercontent.com/emacs-eask/archives/master/%s/" name))
            (url-file (concat url file))
            (download-p)
-           (local-archive-p (string= name "local"))  ; exclude local elpa
+           ;; exclude local elpa
+           (local-archive-p (string= name eask--local-archive-name))
            (fmt (eask--action-format (length package-archives))))
       (unless (file-exists-p local-file)
         (eask-with-verbosity-override 'log
@@ -1370,6 +1373,10 @@ argument COMMAND."
 (defun eask-f-source (name &optional location)
   "Add archive NAME with LOCATION."
   (when (symbolp name) (setq name (eask-2str name)))  ; ensure to string, accept symbol
+  ;; Handle local archive.
+  (when (equal name eask--local-archive-name)
+    (eask-error "Invalid archive name `%s'" name))
+  ;; Handle multiple same archive name!
   (when (assoc name package-archives)
     (eask-error "Multiple definition of source `%s'" name))
   (setq location (eask-source-url name location))
@@ -1385,12 +1392,19 @@ argument COMMAND."
         eask-depends-on-dev (reverse eask-depends-on-dev))
   (when eask-depends-on-recipe-p
     (eask-with-progress
-      "✓ Checking local archives... "
+      (format "✓ Checking local archives %s... "
+              (ansi-magenta eask--local-archive-name))
       (eask-with-verbosity 'debug
-        (add-to-list 'package-archives `("local" . ,github-elpa-archive-dir) t)
-        ;; If the local archives is added, we set the priority to a very
-        ;; high number so user we always use the specified dependencies!
-        (add-to-list 'package-archive-priorities `("local" . 90) t))
+        ;; Make sure can be customized by `source'
+        (unless (assoc eask--local-archive-name package-archives)
+          (add-to-list 'package-archives
+                       `(,eask--local-archive-name . ,github-elpa-archive-dir) t))
+        ;; Make sure can be customized by `source-priority'
+        (unless (assoc eask--local-archive-name package-archive-priorities)
+          ;; If the local archives is added, we set the priority to a very
+          ;; high number so user we always use the specified dependencies!
+          (add-to-list 'package-archive-priorities
+                       `(,eask--local-archive-name . 90) t)))
       "done!")))
 (defun eask-f-depends-on (pkg &rest args)
   "Specify a dependency (PKG) of this package.
@@ -1559,9 +1573,19 @@ For arguments MSG and ARGS, please see function `eask-msg' for the detials."
 
 Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
   (apply (if (eask-strict-p) #'eask-error #'eask-warn) args))
+(defconst eask--exit-code
+  `((success . 0)   ; Unused
+    (failure . 1)   ; Catchall for general errors
+    (misuse  . 2))
+  "Exit code specification.")
+(defun eask-exit-code (key)
+  "Return the exit code by KEY symbol."
+  (alist-get key eask--exit-code))
 (defun eask--exit (&optional exit-code &rest _)
   "Kill Emacs with EXIT-CODE (default 1)."
-  (kill-emacs (or exit-code 1)))
+  (kill-emacs (or (cond ((numberp exit-code) exit-code)
+                        ((symbolp exit-code) (eask-exit-code exit-code)))
+                  (eask-exit-code 'failure))))
 (defun eask--trigger-error ()
   "Trigger error event."
   (when (and (not eask--ignore-error-p)
@@ -1651,12 +1675,10 @@ the exit code.  The default value `nil' will be replaced by `1'; therefore
 would send exit code of `1'."
   (let* ((command (eask-2str command))  ; convert to string
          (help-file (concat eask-lisp-root "help/" command))
-         ;; The default exit code is `1' since `eask-help' prints the help
+         ;; The default exit code is `2' since `eask-help' prints the help
          ;; message on user error 99% of the time.
-         ;;
-         ;; TODO: Later replace exit code `1' with readable symbol after
-         ;; the exit code has specified.
-         (print-or-exit-code (or print-or-exit-code 1)))
+         (print-or-exit-code (or print-or-exit-code
+                                 (eask-exit-code 'misuse))))
     (if (file-exists-p help-file)
         (with-temp-buffer
           (insert-file-contents help-file)
