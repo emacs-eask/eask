@@ -920,8 +920,15 @@ Argument PKG is the name of the package."
         (eask-with-verbosity 'debug
           ;; Handle `--force` flag.
           (when should-reinstall-p (package-delete (eask-package-desc pkg t) t))
+          ;; XXX: Without ignore-errors guard, it will trigger error
+          ;;
+          ;;   Can't find library xxxxxxx.el
+          ;;
+          ;; But we can remove this after Emacs 28, since function `find-library-name'
+          ;; has replaced the function `signal' instead of the `error'.
+          ;;
           ;; Install it.
-          (package-install-file (expand-file-name file)))
+          (eask-ignore-errors (package-install-file (expand-file-name file))))
         "done ✓")))))
 (defun eask-package-install (pkg)
   "Install the package (PKG)."
@@ -2241,13 +2248,38 @@ The CMD is the command to start a new Emacs session."
 ;; ~/lisp/core/install-deps.el
 
 ;; ~/lisp/core/install-file.el
-(defun eask-install-file--guess-name (file)
-  "Guess the package name of the install FILE."
-  (file-name-sans-extension (file-name-nondirectory (directory-file-name file))))
+(defun eask-install-file--get-package-name (path)
+  "Get the package name from PATH, which is a file, directory or archive."
+  (cond
+   ((not (file-exists-p path))
+    (eask-error "File does not exist %s" path))
+   ((or (string-suffix-p ".tar" path)
+        (string-suffix-p ".tar.gz" path))
+    ;; tar file
+    ;; Note this can throw strange errors if
+    ;; - there is no -pkg.el in the tar file
+    ;; - the tar file was built in a folder with a different name
+    ;; tar files created with eask package are fine
+    (require 'tar-mode)
+    (let ((pkg-desc (with-current-buffer (find-file (expand-file-name path))
+                      (eask-ignore-errors-silent (package-tar-file-info)))))
+      (unless pkg-desc
+        ;; package-dir-info will return nil if there is no -pkg.el and no .el files at path
+        (eask-error "No package in %s" path))
+      (package-desc-name pkg-desc))
+    )
+   (t ;; .el file or directory
+    ;; Note package-dir-info doesn't work outside of dired mode!
+    (let ((pkg-desc (with-current-buffer (dired (expand-file-name path))
+                      (eask-ignore-errors-silent (package-dir-info)))))
+      (unless pkg-desc
+        ;; package-dir-info will return nil if there is no -pkg.el and no .el files at path
+        (eask-error "No package in %s" path))
+      (package-desc-name pkg-desc)))))
 (defun eask-install-file--packages (files)
   "The file install packages with FILES."
   (let* ((deps (mapcar (lambda (file)
-                         (list (eask-install-file--guess-name file) file))
+                         (list (eask-install-file--get-package-name file) file))
                        files))
          (names (mapcar #'car deps))
          (len (length deps))
@@ -2265,6 +2297,9 @@ The CMD is the command to start a new Emacs session."
                installed s skipped)))
 
 ;; ~/lisp/core/install-vc.el
+(defun eask-install-vc--guess-name (file)
+  "Guess the package name of the install FILE."
+  (file-name-sans-extension (file-name-nondirectory (directory-file-name file))))
 (defun eask-install-vc--split-sepcs (specs)
   "Split the SPECS and return a list of specification."
   (let ((new-specs)
@@ -2274,7 +2309,7 @@ The CMD is the command to start a new Emacs session."
       (cond ((ffap-url-p spec)
              (push (reverse current-spec) new-specs)
              ;; We're using the push, so the order is reversed.
-             (setq current-spec (list spec (eask-install-file--guess-name spec))))
+             (setq current-spec (list spec (eask-install-vc--guess-name spec))))
             (t
              (push spec current-spec))))
     ;; Push thes rest of the specification.
