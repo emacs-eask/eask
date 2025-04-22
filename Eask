@@ -1,3 +1,5 @@
+;; -*- mode: eask; lexical-binding: t -*-
+
 (package "eask"
          "0.11.2"
          "Core Eask APIs, for Eask CLI development")
