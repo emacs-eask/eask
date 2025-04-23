@@ -508,7 +508,8 @@ will return `lint/checkdoc' with a dash between two subcommands."
   "Report error if the current command requires minimum VERSION."
   (when (version< emacs-version version)
     (eask-error "The command `%s' requires Emacs %s and above!"
-                (eask-command) version)))
+                (eask-s-replace "/" " " (eask-command))  ; Pretty print.
+                version)))
 (defun eask-command-p (commands)
   "Return t if COMMANDS is the current command."
   (member (eask-command) (eask-listify commands)))
@@ -3036,7 +3037,9 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                         (keywords (split-string keywords "[, ]"))
                         (keywords (string-join keywords "\" \""))
                         (content (format
-                                  "(package \"%s\"
+                                  ";; -*- mode: eask; lexical-binding: t -*-
+
+(package \"%s\"
          \"%s\"
          \"%s\")
 
@@ -3130,7 +3133,9 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                         (keywords (split-string keywords "[, ]"))
                         (keywords (string-join keywords "\" \""))
                         (content (format
-                                  "(package \"%s\"
+                                  ";; -*- mode: eask; lexical-binding: t -*-
+
+(package \"%s\"
          \"%s\"
          \"%s\")
 
@@ -3213,7 +3218,9 @@ If no found the Keg file, returns nil."
                         (keywords (split-string keywords "[, ]"))
                         (keywords (string-join keywords "\" \""))
                         (content (format
-                                  "(package \"%s\"
+                                  ";; -*- mode: eask; lexical-binding: t -*-
+
+(package \"%s\"
          \"%s\"
          \"%s\")
 
@@ -3296,7 +3303,9 @@ If no found the Keg file, returns nil."
                           (keywords (string-join keywords "\" \""))
                           (reqs (package-desc-reqs pkg-desc))
                           (content (format
-                                    "(package \"%s\"
+                                    ";; -*- mode: eask; lexical-binding: t -*-
+
+(package \"%s\"
          \"%s\"
          %s)
 
