@@ -115,6 +115,7 @@ Argument BODY are forms for execution."
   (declare (indent 1) (debug t))
   `(let ((package-archives package-archives)
          (archives (eask-listify ,archives))
+         (package-user-dir eask-package-sys-dir)  ; Install as global packages.
          (added))
      (dolist (archive archives)
        (unless (assoc archive package-archives)
@@ -185,12 +186,15 @@ Argument BODY are forms for execution."
 (defmacro eask--setup-home (dir &rest body)
   "Set up config directory in DIR, then execute BODY."
   (declare (indent 1) (debug t))
-  `(let* ((user-emacs-directory (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
-          (package-user-dir     (expand-file-name "elpa" user-emacs-directory))
-          (early-init-file      (locate-user-emacs-file "early-init.el"))
-          (eask-dot-emacs-file  (locate-user-emacs-file ".emacs"))
-          (user-init-file       (locate-user-emacs-file "init.el"))
-          (custom-file          (locate-user-emacs-file "custom.el")))
+  `(let* ((user-emacs-directory   (expand-file-name (concat ".eask/" emacs-version "/") ,dir))
+          (package-user-dir       (expand-file-name "elpa/" user-emacs-directory))
+          ;; Add global scope elpa directory.
+          (package-directory-list (append package-directory-list
+                                          (list eask-package-sys-dir)))
+          (early-init-file        (locate-user-emacs-file "early-init.el"))
+          (eask-dot-emacs-file    (locate-user-emacs-file ".emacs"))
+          (user-init-file         (locate-user-emacs-file "init.el"))
+          (custom-file            (locate-user-emacs-file "custom.el")))
      ,@body))
 (defmacro eask-start (&rest body)
   "Execute BODY with workspace setup."
@@ -216,7 +220,7 @@ Argument BODY are forms for execution."
              (eask--load-config)
              (eask--with-hooks ,@body)))
           ((eask-global-p)
-           (eask--setup-home (concat eask-homedir "../")  ; `/home/user/', escape `.eask'
+           (eask--setup-home eask-userdir
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory))))
                ;; We accept Eask-file in `global' scope, but it shouldn't be used
                ;; for the sandbox.
@@ -235,7 +239,7 @@ Argument BODY are forms for execution."
            (eask-file-try-load default-directory)
            ;; Then setup the user directory according to the Eask-file!
            (eask--setup-home (or eask-file-root
-                                 (concat eask-homedir "../"))
+                                 eask-userdir)
              (let ((eask--first-init-p (not (file-directory-p user-emacs-directory)))
                    (scope (if eask-file-root "" "global ")))
                (eask-with-verbosity 'debug
@@ -453,7 +457,18 @@ Arguments FNC and ARGS are used for advice `:around'."
 (defconst eask-has-colors (getenv "EASK_HASCOLORS")
   "Return non-nil if terminal supports colors.")
 (defconst eask-homedir (getenv "EASK_HOMEDIR")
-  "Eask's home directory path.")
+  "Eask's home directory path.
+
+It points to the global home directory `~/.eask/'.")
+(defconst eask-userdir (expand-file-name "../" eask-homedir)
+  "Eask's user directory path.
+
+It points to the global user directory `~/'.")
+(defconst eask-package-sys-dir (expand-file-name (concat emacs-version "/elpa/")
+                                                 eask-homedir)
+  "Eask global elpa directory; it will be treated as the system-wide packages.
+
+It points to the global elpa directory `~/.eask/XX.X/elpa/'.")
 (defconst eask-invocation (getenv "EASK_INVOCATION")
   "Eask's invocation program path.")
 (defconst eask-is-pkg (getenv "EASK_IS_PKG")
@@ -878,11 +893,10 @@ Argument PKG is the name of the package."
          ;; Wrap version number with color
          (pkg-version (ansi-yellow (eask-package--version-string pkg))))
     (list pkg pkg-string pkg-version)))
-(defun eask-archive-install-packages (archives names)
+(defun eask-archive-install-packages (archives &rest names)
   "Install package NAMES with ARCHIVES setup."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
-  (when-let* ((names (eask-listify names))
-              ((cl-some (lambda (pkg) (not (package-installed-p pkg))) names)))
+  (when (cl-some (lambda (pkg) (not (package-installed-p pkg))) names)
     (eask-with-archives archives
       (eask--package-mapc #'eask-package-install names))))
 (defun eask-package-installable-p (pkg)
@@ -2660,9 +2674,9 @@ Argument VERSION is a string represent the version number of this package."
     max-len))
 (defun eask-status--print-infos (lst)
   "Print environment info LST."
-  (let* ((len-0 (eask-2str (eask-status--list-max-length lst 0)))
+  (let* ((len-0 (eask-2str (eask-status--list-max-length lst 0)))  ; unused
          (len-1 (eask-2str (+ (eask-status--list-max-length lst 1) 2)))
-         (fmt (concat "   %-21s   %-" len-1 "s   %s")))
+         (fmt (concat "   %-24s   %-" len-1 "s   %s")))
     (dolist (pair lst)
       (when pair
         (eask-status--print-info fmt pair)
