@@ -573,6 +573,9 @@ This flag allows you to run through operations without reporting errors."
     (forward-char)
     (delete-region (point-min) (point))
     (eval-buffer)))
+(defun eask-always (&rest _arguments)
+  "The function `always' is supported after Emacs 28.1."
+  t)
 (defun eask-2str (obj)
   "Convert OBJ to string."
   (format "%s" obj))
