@@ -91,10 +91,9 @@
                       (let-kill-line)))))
            (goto-char (point-min))
            (insert forward-str))
-         ;; Make sure only one newline between each section.
-         (let* ((str (buffer-string))
-                (str (s-replace "\n\n\n" "\n\n" str)))
-           str)))))
+         (buffer-string)))))
+  ;; Make sure only one newline between each section.
+  (let-clean-newlines)
   (save-buffer))
 
 ;;; generate-source.el ends here

@@ -42,6 +42,13 @@
     (forward-sexp)
     (kill-region beg (point))))
 
+(defun let-clean-newlines ()
+  "Make sure only one newline between blocks."
+  (let* ((str (buffer-string))
+         (str (s-replace "\n\n\n" "\n\n" str)))
+    (erase-buffer)
+    (insert str)))
+
 ;; Local Variables:
 ;; coding: utf-8
 ;; no-byte-compile: t
