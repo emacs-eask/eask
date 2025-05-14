@@ -6,7 +6,7 @@
 (require 'json)
 (require 'subr-x)
 
-(defconst in-ci (getenv "GITHUB_WORKSPACE")
+(defconst from-eask (bound-and-true-p eask-homedir)
   "It's non-nil if the environment is identified as CI.")
 
 ;;
@@ -14,7 +14,13 @@
 
 (defun locate-project-file (path)
   "Locate the project by enviornment."
-  (concat (if in-ci "./" "../") path))
+  (let ((path (concat (if from-eask "./" "../") path)))
+    (expand-file-name path)))
+
+(defun s-replace (old new s)
+  "..."
+  (declare (pure t) (side-effect-free t))
+  (replace-regexp-in-string (regexp-quote old) new s t t))
 
 (defun s-count-matches (regexp s &optional start end)
   "..."
