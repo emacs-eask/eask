@@ -38,47 +38,58 @@
 (declare-function ansi-green "ext:ansi.el")
 (declare-function ansi-yellow "ext:ansi.el")
 (declare-function ansi-white "ext:ansi.el")
+
 (defvar eask-dot-emacs-file nil
   "Variable hold .emacs file location.")
+
 (defcustom eask-import-timeout 10
   "Number of seconds before timing out elisp importation attempts.
 If nil, never time out."
   :type '(choice (number :tag "Number of seconds")
                  (const  :tag "Never time out" nil))
   :group 'eask)
+
 (defvar eask-loading-file-p nil
   "This became t; if we are loading script from another file and not expecting
 the `eask-start' execution.")
+
 (defmacro eask-defvc< (version &rest body)
   "Define scope if Emacs version is below VERSION.
 
 Argument BODY are forms for execution."
   (declare (indent 1) (debug t))
   `(when (< emacs-major-version ,version) ,@body))
+
 (defmacro eask--silent (&rest body)
   "Execute BODY without message."
   (declare (indent 0) (debug t))
   `(let ((inhibit-message t) message-log-max) ,@body))
+
 (defmacro eask--unsilent (&rest body)
   "Execute BODY with message."
   (declare (indent 0) (debug t))
   `(let (inhibit-message) ,@body))
+
 (defmacro eask-with-buffer (&rest body)
   "Create a temporary buffer (for this program), and evaluate BODY there."
   (declare (indent 0) (debug t))
   `(with-current-buffer (get-buffer-create ,eask-buffer-name) ,@body))
+
 (defmacro eask-with-temp-buffer (&rest body)
   "Create a temporary buffer (for this program), and evaluate BODY there."
   (declare (indent 0) (debug t))
   `(eask-with-buffer (erase-buffer) ,@body))
+
 (defcustom eask-elapsed-time nil
   "Log with elapsed time."
   :type 'boolean
   :group 'eask)
+
 (defcustom eask-minimum-reported-time 0.1
   "Minimal load time that will be reported."
   :type 'number
   :group 'eask)
+
 (defmacro eask-with-progress (msg-start body msg-end)
   "Progress BODY wrapper with prefix (MSG-START) and suffix (MSG-END) messages."
   (declare (indent 0) (debug t))
@@ -92,12 +103,16 @@ Argument BODY are forms for execution."
              (eask-msg (ansi-white (format " (%.3fs)" elapsed))))))
      (ignore-errors (eask-write ,msg-start)) ,body
      (ignore-errors (eask-msg ,msg-end))))
+
 (defvar eask--action-prefix ""
   "The prefix to display before each package action.")
+
 (defvar eask--action-index 0
   "The index ID for each task.")
+
 (defvar eask--package-initialized nil
   "Flag for package initialization in global scope.")
+
 (defmacro eask--pkg-process (pkg &rest body)
   "Execute BODY with PKG's related variables."
   (declare (indent 1) (debug t))
@@ -108,6 +123,7 @@ Argument BODY are forms for execution."
           (installed-p        (package-installed-p pkg))
           (should-reinstall-p (and installed-p (eask-force-p))))
      ,@body))
+
 (defmacro eask-with-archives (archives &rest body)
   "Scope that temporary make ARCHIVES available.
 
@@ -130,18 +146,22 @@ Argument BODY are forms for execution."
          (eask--silent (eask-pkg-init t))
          "done ✓"))
      ,@body))
+
 (defvar eask--first-init-p nil
   "Is non-nil if .eask does not exists; meaning users haven't called eask in the
 current workspace.")
+
 (defvar eask--initialized-p nil
   "Set to t once the environment setup has done; this is used when calling
 other scripts internally.  See function `eask-call'.")
+
 (defmacro eask--batch-mode (&rest body)
   "Execute forms BODY in batch-mode."
   (declare (indent 0) (debug t))
   `(let ((argv (eask-args))
          load-file-name buffer-file-name)
      ,@body))
+
 (defmacro eask--setup-env (&rest body)
   "Execute BODY with workspace setup."
   (declare (indent 0) (debug t))
@@ -151,6 +171,7 @@ other scripts internally.  See function `eask-call'.")
          (push (cons cmd (lambda (&rest _))) alist))
        (setq command-switch-alist (append command-switch-alist alist))
        ,@body)))
+
 (defmacro eask--alias-env (&rest body)
   "Replace all Eask file functions temporary; this is only used when loading
 Eask file in the workspace.
@@ -169,8 +190,10 @@ Argument BODY are forms for execution."
       (lambda (keyword _api old)
         (defalias keyword (symbol-function old))))
      result))
+
 (defvar eask-file nil "The Eask file's filename.")
 (defvar eask-file-root nil "The Eask file's directory.")
+
 (defmacro eask--with-hooks (&rest body)
   "Execute BODY with before/after hooks."
   (declare (indent 0) (debug t))
@@ -183,6 +206,7 @@ Argument BODY are forms for execution."
        ,@body
        (run-hooks (intern after))
        (run-hooks 'eask-after-command-hook))))
+
 (defmacro eask--setup-home (dir &rest body)
   "Set up config directory in DIR, then execute BODY."
   (declare (indent 1) (debug t))
@@ -196,6 +220,7 @@ Argument BODY are forms for execution."
           (user-init-file         (locate-user-emacs-file "init.el"))
           (custom-file            (locate-user-emacs-file "custom.el")))
      ,@body))
+
 (defmacro eask-start (&rest body)
   "Execute BODY with workspace setup."
   (declare (indent 0) (debug t))
@@ -268,8 +293,10 @@ Argument BODY are forms for execution."
                  (eask--silent (eask-setup-paths))
                  (eask-with-verbosity 'debug (eask--load-config))
                  (eask--with-hooks ,@body))))))))))
+
 (defvar eask-package            nil)
-(defvar eask-package-desc       nil) (defvar eask-package-descriptor nil)
+(defvar eask-package-desc       nil) 
+(defvar eask-package-descriptor nil)
 (defvar eask-website-url        nil)
 (defvar eask-keywords           nil)
 (defvar eask-authors            nil)
@@ -280,6 +307,7 @@ Argument BODY are forms for execution."
 (defvar eask-depends-on-emacs   nil)
 (defvar eask-depends-on         nil)
 (defvar eask-depends-on-dev     nil)
+
 (defmacro eask--save-eask-file-state (&rest body)
   "Execute BODY without touching the Eask-file global variables."
   (declare (indent 0) (debug t))
@@ -301,6 +329,7 @@ Argument BODY are forms for execution."
          eask-depends-on
          eask-depends-on-dev)
      ,@body))
+
 (defmacro eask--save-load-eask-file (file success &rest error)
   "Load an Eask FILE and execute forms SUCCESS or ERROR."
   (declare (indent 2) (debug t))
@@ -311,24 +340,30 @@ Argument BODY are forms for execution."
                (ignore-errors (eask-file-load ,file)))
              (progn ,success)
            ,@error)))))
+
 (defvar eask-depends-on-recipe-p nil
   "Set to t if package depends on recipe.")
+
 (defvar eask--local-archive-name "local"
   "The local archive name.")
+
 (defcustom eask-verbosity 3
   "Log level for all messages; 4 means trace most anything, 0 means nothing.
 
 Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
   :type 'integer
   :group 'eask)
+
 (defcustom eask-timestamps nil
   "Log messages with timestamps."
   :type 'boolean
   :group 'eask)
+
 (defcustom eask-log-level nil
   "Log messages with level."
   :type 'boolean
   :group 'eask)
+
 (defcustom eask-level-color
   '((all   . ansi-magenta)
     (debug . ansi-blue)
@@ -339,6 +374,7 @@ Standard is, 0 (error), 1 (warning), 2 (info), 3 (log), 4 (debug), 5 (all)."
   "Alist of each log level's color, in (SYMBOL . ANSI-FUNCTION)."
   :type 'alist
   :group 'eask)
+
 (defmacro eask-with-verbosity (symbol &rest body)
   "Define verbosity scope.
 
@@ -346,6 +382,7 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   (declare (indent 1) (debug t))
   `(if (eask-reach-verbosity-p ,symbol) (progn ,@body)
      (eask--silent ,@body)))
+
 (defmacro eask-with-verbosity-override (symbol &rest body)
   "Define override verbosity scope.
 
@@ -353,68 +390,86 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   (declare (indent 1) (debug t))
   `(if (eask-reach-verbosity-p ,symbol) (eask--unsilent ,@body)
      (eask--silent ,@body)))
+
 (defvar eask--ignore-error-p nil
   "Don't trigger error when this is non-nil.")
+
 (defvar eask-inhibit-error-message nil
   "Non-nil to stop error/warning message.")
+
 (defmacro eask-ignore-errors (&rest body)
   "Execute BODY without killing the process."
   (declare (indent 0) (debug t))
   `(let ((eask--ignore-error-p t)) ,@body))
+
 (defmacro eask--silent-error (&rest body)
   "Execute BODY and inhibit all error messages."
   (declare (indent 0) (debug t))
   `(let ((eask-inhibit-error-message t)) ,@body))
+
 (defmacro eask-ignore-errors-silent (&rest body)
   "Execute BODY by completely ignore errors."
   (declare (indent 0) (debug t))
   `(eask-ignore-errors (eask--silent-error ,@body)))
+
 (defcustom eask-log-file nil
   "Weather to generate log files."
   :type 'boolean
   :group 'eask)
+
 (defmacro eask--log-write-buffer (buffer file)
   "Write BUFFER to FILE."
   `(when (get-buffer-create ,buffer)
      (let ((buffer-file-coding-system 'utf-8))
        (write-region (with-current-buffer ,buffer (buffer-string)) nil
                      (expand-file-name ,file log-dir)))))
+
 (defcustom eask-file-loaded-hook nil
   "Hook runs after Easkfile is loaded."
   :type 'hook
   :group 'eask)
+
 (defcustom eask-before-command-hook nil
   "Hook runs before command is executed."
   :type 'hook
   :group 'eask)
+
 (defcustom eask-after-command-hook nil
   "Hook runs after command is executed."
   :type 'hook
   :group 'eask)
+
 (defcustom eask-on-error-hook nil
   "Hook runs when error is triggered."
   :type 'hook
   :group 'eask)
+
 (defcustom eask-on-warning-hook nil
   "Hook runs when warning is triggered."
   :type 'hook
   :group 'eask)
+
 (defcustom eask-dist-path "dist"
   "Default path where to place the package artifact."
   :type 'string
   :group 'eask)
+
 (defcustom eask-docs-path "docs/public/"
   "Default path where to place the documentation."
   :type 'string
   :group 'eask)
+
 (defcustom eask-recipe-path "recipes"
   "Name of default target directory for placing recipes."
   :type 'string
   :group 'eask)
+
 (defvar eask-lint-first-file-p nil
   "Set the flag to t after the first file is linted.")
+
 (defvar eask-commands nil
   "List of defined commands.")
+
 (defmacro eask-defcommand (name &rest body)
   "Define an Eask command."
   (declare (doc-string 2) (indent 1))
@@ -422,6 +477,7 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   (push name eask-commands)
   (setq eask-commands (delete-dups eask-commands))
   `(defun ,name nil ,@body))
+
 (require 'ansi-color nil t)
 (require 'package nil t)
 (require 'project nil t)
@@ -435,44 +491,57 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
 (require 'pp nil t)
 (require 'rect nil t)
 (require 'subr-x nil t)
+
 (defconst eask-is-windows (memq system-type '(cygwin windows-nt ms-dos))
   "The system is Windows.")
+
 (defconst eask-is-mac     (eq system-type 'darwin)
   "The system is macOS.")
+
 (defconst eask-is-linux   (eq system-type 'gnu/linux)
   "The system is GNU Linux.")
+
 (defconst eask-is-bsd     (or eask-is-mac (eq system-type 'berkeley-unix))
   "The system is BSD.")
+
 (defconst eask-system-type
   (cond (eask-is-windows 'dos)
         (eask-is-bsd     'mac)
         (eask-is-linux   'unix)
         (t               'unknown))
   "Return current OS type.")
+
 (defun eask--load--adv (fnc &rest args)
   "Prevent `_prepare.el' loading twice.
 
 Arguments FNC and ARGS are used for advice `:around'."
   (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
+
 (defconst eask-has-colors (getenv "EASK_HASCOLORS")
   "Return non-nil if terminal supports colors.")
+
 (defconst eask-homedir (getenv "EASK_HOMEDIR")
   "Eask's home directory path.
 
 It points to the global home directory `~/.eask/'.")
+
 (defconst eask-userdir (expand-file-name "../" eask-homedir)
   "Eask's user directory path.
 
 It points to the global user directory `~/'.")
+
 (defconst eask-package-sys-dir (expand-file-name (concat emacs-version "/elpa/")
                                                  eask-homedir)
   "Eask global elpa directory; it will be treated as the system-wide packages.
 
 It points to the global elpa directory `~/.eask/XX.X/elpa/'.")
+
 (defconst eask-invocation (getenv "EASK_INVOCATION")
   "Eask's invocation program path.")
+
 (defconst eask-is-pkg (getenv "EASK_IS_PKG")
   "Return non-nil if Eask is packaged.")
+
 (defconst eask-rest
   (let ((args (getenv "EASK_REST_ARGS")))
     (setq args (ignore-errors (split-string args ",")))
@@ -480,16 +549,20 @@ It points to the global elpa directory `~/.eask/XX.X/elpa/'.")
   "Eask's arguments after command separator `--'; return a list.
 
 If the argument is `-- arg0 arg1'; it will return `(arg0 arg1)'.")
+
 (defun eask-rest ()
   "Eask's arguments after command separator `--'; return a string.
 
 If the argument is `-- arg0 arg1'; it will return `arg0 arg1'."
   (mapconcat #'identity eask-rest " "))
+
 (defconst eask-argv argv
   "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
+
 (defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
                                   (member "-l" command-line-args)))
   "Script currently executing.")
+
 (defconst eask-lisp-root
   (let* ((script (ignore-errors (file-name-directory eask--script)))
          (dir (ignore-errors (expand-file-name (concat script "../"))))
@@ -501,6 +574,7 @@ If the argument is `-- arg0 arg1'; it will return `arg0 arg1'."
             basename (file-name-nondirectory (directory-file-name dir))))
     dir)
   "Source `lisp' directory; should always end with slash.")
+
 (defun eask-command ()
   "What's the current command?
 
@@ -519,15 +593,18 @@ will return `lint/checkdoc' with a dash between two subcommands."
       (mapconcat #'identity (append module-names
                                     (list script-file))
                  "/"))))
+
 (defun eask-command-check (version)
   "Report error if the current command requires minimum VERSION."
   (when (version< emacs-version version)
     (eask-error "The command `%s' requires Emacs %s and above!"
                 (eask-s-replace "/" " " (eask-command))  ; Pretty print.
                 version)))
+
 (defun eask-command-p (commands)
   "Return t if COMMANDS is the current command."
   (member (eask-command) (eask-listify commands)))
+
 (defun eask-special-p ()
   "Return t if the command that can be run without Eask-file existence.
 
@@ -538,6 +615,7 @@ workspace has no valid Eask-file; it will load global workspace instead."
                     "bump" "cat" "keywords" "repl"
                     "generate/ignore" "generate/license"
                     "test/melpazoid")))
+
 (defun eask-execution-p ()
   "Return t if the command is the execution command.
 
@@ -547,24 +625,29 @@ This is added because we don't want to pollute `error' and `warn' functions."
                     ;; NOTE: These test commands handle the exit code themselves;
                     ;; therefore, we don't need to handle it for them!
                     "test/ert" "test/ert-runner")))
+
 (defun eask-checker-p ()
   "Return t if running Eask as the checker.
 
 Without this flag, the process will be terminated once the error is occurred.
 This flag allows you to run through operations without reporting errors."
   (eask-command-p '("analyze")))
+
 (defun eask-script (script)
   "Return full SCRIPT filename."
   (concat eask-lisp-root script ".el"))
+
 (defun eask-load (script)
   "Load another eask SCRIPT; so we can reuse functions across all scripts."
   (let ((eask-loading-file-p t)) (eask-call script)))
+
 (defun eask-call (script)
   "Call another eask SCRIPT."
   (if-let* ((script-file (eask-script script))
             ((file-exists-p script-file)))
       (load script-file nil t)
     (eask-error "Script missing %s" script-file)))
+
 (defun eask-import (url)
   "Load and eval the script from a URL."
   (with-current-buffer (url-retrieve-synchronously url t nil eask-import-timeout)
@@ -573,12 +656,15 @@ This flag allows you to run through operations without reporting errors."
     (forward-char)
     (delete-region (point-min) (point))
     (eval-buffer)))
+
 (defun eask-always (&rest _arguments)
   "The function `always' is supported after Emacs 28.1."
   t)
+
 (defun eask-2str (obj)
   "Convert OBJ to string."
   (format "%s" obj))
+
 (defun eask-2url (url)
   "Convert secure/insecure URL."
   (if (and url
@@ -586,30 +672,38 @@ This flag allows you to run through operations without reporting errors."
            (eask-network-insecure-p))
       (eask-s-replace "https://" "http://" url)
     url))
+
 (defun eask-listify (obj)
   "Turn OBJ to list."
   (if (listp obj) obj (list obj)))
+
 (defun eask-intern (obj)
   "Safely intern OBJ."
   (if (stringp obj) (intern obj) obj))
+
 (defun eask--sinr (len-or-list form-1 form-2)
   "If LEN-OR-LIST has length of 1; return FORM-1, else FORM-2."
   (let ((len (if (numberp len-or-list) len-or-list (length len-or-list))))
     (if (<= len 1) form-1 form-2)))
+
 (defun eask-current-time ()
   "Return current time."
   (let ((now (current-time))) (logior (ash (car now) 16) (cadr now))))
+
 (defun eask-seq-str-max (sequence)
   "Return max length in SEQUENCE of strings."
   (let ((result 0))
     (mapc (lambda (elm) (setq result (max result (length (eask-2str elm))))) sequence)
     result))
+
 (defun eask-s-replace (old new s)
   "Replace OLD with NEW in S each time it occurs."
   (replace-regexp-in-string (regexp-quote old) new s t t))
+
 (defun eask-f-filename (path)
   "Return the name of PATH."
   (file-name-nondirectory (directory-file-name path)))
+
 (defun eask-directory-empty-p (dir)
   "Return t if DIR names an existing directory containing no other files.
 
@@ -620,6 +714,7 @@ The function `directory-empty-p' only exists 28.1 or above; copied it."
          ;; XXX: Do not pass in the 5th argument COUNT; it doesn't compatbile to
          ;; 27.2 or lower!
          (null (directory-files dir nil directory-files-no-dot-files-regexp t)))))
+
 (defun eask--guess-package-name (basename)
   "Convert the BASENAME to a valid, commonly seen package name."
   (when-let* ((name (ignore-errors (downcase basename))))
@@ -627,6 +722,7 @@ The function `directory-empty-p' only exists 28.1 or above; copied it."
           name (eask-s-replace "-emacs" "" name)
           name (replace-regexp-in-string "[.-]el$" "" name))
     name))
+
 (defun eask-guess-package-name (&optional basename)
   "Return the possible package name.
 
@@ -637,10 +733,12 @@ valid, commonly seen package name."
       (eask--guess-package-name
        (ignore-errors (file-name-nondirectory
                        (file-name-sans-extension eask-package-file))))))
+
 (defun eask-guess-entry-point (&optional basename)
   "Return the guess entry point by its BASENAME."
   (let ((name (eask-guess-package-name basename)))
     (format "%s.el" name)))
+
 (defun eask-read-string (prompt &optional
                                 initial-input
                                 history
@@ -652,15 +750,19 @@ Argument PROMPT and all optional arguments INITIAL-INPUT, HISTORY, DEFAULT-VALUE
 and INHERIT-INPUT-METHOD see function `read-string' for more information."
   (let ((str (read-string prompt initial-input history default-value inherit-input-method)))
     (eask-s-replace "\"" "" str)))
+
 (defun eask--goto-line (line)
   "Go to LINE."
   (goto-char (point-min))
   (forward-line (1- line)))
+
 (defun eask--column-at-point (point)
   "Get column at POINT."
   (save-excursion (goto-char point) (current-column)))
+
 (defconst eask-buffer-name "*eask*"
   "Buffer name is used for temporary storage throughout the life cycle.")
+
 (defun eask-progress-seq (prefix sequence suffix func)
   "Shorthand to progress SEQUENCE of task.
 
@@ -678,6 +780,7 @@ task work."
          (when func (funcall func item))
          suffix))
      sequence)))
+
 (defun eask-print-log-buffer (&optional buffer-or-name)
   "Loop through each line and print each line with corresponds log level.
 
@@ -690,6 +793,7 @@ You can pass BUFFER-OR-NAME to replace current buffer."
               ((string-match-p "[: ][Ww]arning: " line) (eask-warn line))
               (t (eask-log line))))
       (forward-line 1))))
+
 (defun eask-delete-file (filename)
   "Delete a FILENAME from disk."
   (let (deleted)
@@ -701,10 +805,12 @@ You can pass BUFFER-OR-NAME to replace current buffer."
         (setq deleted (and deleted (not (file-exists-p filename)))))
       (if deleted "done ✓" "skipped ✗"))
     deleted))
+
 (defun eask--action-format (len)
   "Construct action format by LEN."
   (setq len (eask-2str len))
   (concat "[%" (eask-2str (length len)) "d/" len "] "))
+
 (defun eask--locate-archive-contents (archive)
   "Locate ARCHIVE's contents file."
   (let* ((name (cond ((consp archive) (car archive))
@@ -712,6 +818,7 @@ You can pass BUFFER-OR-NAME to replace current buffer."
          (file "archive-contents")
          (dir (expand-file-name (concat "archives/" name) package-user-dir)))
     (expand-file-name file dir)))
+
 (defun eask--package-download-one-archive (fnc &rest args)
   "Execution around function `package-download-one-archive'.
 
@@ -734,6 +841,7 @@ Arguments FNC and ARGS are used for advice `:around'."
           (setq download-p t))
         (cond (download-p "done ✓")
               (t          "failed ✗"))))))
+
 (defun eask--download-archives ()
   "If archives download failed; download it manually."
   (dolist (archive package-archives)
@@ -768,9 +876,11 @@ Arguments FNC and ARGS are used for advice `:around'."
                   (local-archive-p "skipped ✗")
                   (t               "failed ✗")))))
       (when download-p (eask-pkg-init t)))))
+
 (defun eask-use-legacy-package-build ()
   "Return t if using the legacy `package-build' package."
   (version< emacs-version "27.1"))
+
 (defun eask-load-legacy-package-build ()
   "Load the legacy `package-build' package."
   (when (eask-use-legacy-package-build)
@@ -779,6 +889,7 @@ Arguments FNC and ARGS are used for advice `:around'."
                          eask-lisp-root
                          emacs-major-version)
                  t)))
+
 (defun eask--update-exec-path ()
   "Add all bin directory to the variable `exec-path'."
   (dolist (entry (directory-files package-user-dir t directory-files-no-dot-files-regexp))
@@ -786,14 +897,17 @@ Arguments FNC and ARGS are used for advice `:around'."
                 ((file-directory-p bin)))
       (add-to-list 'exec-path bin t)))
   (delete-dups exec-path))
+
 (defun eask--update-load-path ()
   "Add all .el files to the variable `load-path'."
   (dolist (filename (eask-package-el-files))
     (add-to-list 'load-path (file-name-directory filename) t))
   (delete-dups load-path))
+
 (defun eask-dependencies ()
   "Return list of dependencies."
   (append eask-depends-on (and (eask-dev-p) eask-depends-on-dev)))
+
 (defun eask--package-mapc (func deps)
   "Like function `mapc' but for process package transaction specifically.
 
@@ -806,6 +920,7 @@ For arguments FUNC and DEPS, see function `mapc' for more information."
       (cl-incf count)
       (setq eask--action-prefix (format fmt count))
       (funcall func dep))))
+
 (defun eask--install-dep (dep)
   "Custom install DEP."
   (let ((name (car dep)))
@@ -824,6 +939,7 @@ For arguments FUNC and DEPS, see function `mapc' for more information."
         (eask-package-try name url-or-package)))
      ;; Fallback to archive install.
      (t (eask-package-install name)))))
+
 (defun eask--install-deps (dependencies msg)
   "Install DEPENDENCIES.
 
@@ -842,6 +958,7 @@ scope of the dependencies (it's either `production' or `development')."
     (eask-msg "")
     (eask-info "(Total of %s dependenc%s installed, %s skipped)"
                installed ies skipped)))
+
 (defun eask-install-dependencies ()
   "Install dependencies defined in Eask file."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
@@ -859,6 +976,7 @@ scope of the dependencies (it's either `production' or `development')."
   (when (and eask-depends-on-dev (eask-dev-p))
     (eask-msg "")
     (eask--install-deps eask-depends-on-dev "development")))
+
 (defun eask-setup-paths ()
   "Setup both variables `exec-path' and `load-path'."
   (eask-with-progress
@@ -868,6 +986,7 @@ scope of the dependencies (it's either `production' or `development')."
       (setenv "PATH" (string-join exec-path path-separator))
       (setenv "EMACSLOADPATH" (string-join load-path path-separator)))
     (ansi-green "done ✓")))
+
 (defun eask-pkg-init (&optional force)
   "Package initialization.
 
@@ -885,6 +1004,7 @@ If the argument FORCE is non-nil, force initialize packages in this session."
         (let ((eask--action-index 0)) (package-refresh-contents))
         (let ((eask--action-index 0)) (eask--download-archives)))
       (ansi-green "done ✓"))))
+
 (defun eask--pkg-transaction-vars (pkg)
   "Return 1 symbol and 2 strings.
 
@@ -896,15 +1016,18 @@ Argument PKG is the name of the package."
          ;; Wrap version number with color
          (pkg-version (ansi-yellow (eask-package--version-string pkg))))
     (list pkg pkg-string pkg-version)))
+
 (defun eask-archive-install-packages (archives &rest names)
   "Install package NAMES with ARCHIVES setup."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
   (when (cl-some (lambda (pkg) (not (package-installed-p pkg))) names)
     (eask-with-archives archives
       (eask--package-mapc #'eask-package-install names))))
+
 (defun eask-package-installable-p (pkg)
   "Return non-nil if package (PKG) is installable."
   (assq (eask-intern pkg) package-archive-contents))
+
 (defun eask-package-try (pkg &optional url-or-package)
   "To try a package (PKG) without actually install it.
 
@@ -921,6 +1044,7 @@ The optional argument URL-OR-PACKAGE is used in the function `try'."
       (require 'try)
       (try (or url-or-package pkg)))
     "done ✓"))
+
 (defun eask-package-vc-install (pkg spec)
   "To vc install the package (PKG) by argument SPEC."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
@@ -941,6 +1065,7 @@ The optional argument URL-OR-PACKAGE is used in the function `try'."
           ;; Install it.
           (apply #'package-vc-install spec))
         "done ✓")))))
+
 (defun eask-package-install-file (pkg file)
   "To FILE install the package (PKG)."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
@@ -968,6 +1093,7 @@ The optional argument URL-OR-PACKAGE is used in the function `try'."
           ;; Install it.
           (eask-ignore-errors (package-install-file (expand-file-name file))))
         "done ✓")))))
+
 (defun eask-package-install (pkg)
   "Install the package (PKG)."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
@@ -1000,6 +1126,7 @@ The optional argument URL-OR-PACKAGE is used in the function `try'."
             ;; Install it.
             (eask-ignore-errors (package-install pkg)))
           "done ✓"))))))
+
 (defun eask-package-delete (pkg)
   "Delete the package (PKG)."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
@@ -1014,6 +1141,7 @@ The optional argument URL-OR-PACKAGE is used in the function `try'."
           (eask-with-verbosity 'debug
             (package-delete (eask-package-desc pkg t) (eask-force-p)))
           "done ✓"))))))
+
 (defun eask-package-reinstall (pkg)
   "Reinstall the package (PKG)."
   (eask-defvc< 27 (eask-pkg-init))  ; XXX: remove this after we drop 26.x
@@ -1031,6 +1159,7 @@ The optional argument URL-OR-PACKAGE is used in the function `try'."
             (package-delete (eask-package-desc pkg t) t)
             (eask-ignore-errors (package-install pkg)))
           "done ✓"))))))
+
 (defun eask-package-desc (name &optional current)
   "Build package description by its NAME.
 
@@ -1039,6 +1168,7 @@ non-nil, we retrieve version number from the variable `package-alist';
 otherwise, we retrieve it from the variable `package-archive-contents'."
   (cadr (assq name (if current package-alist
                      (or package-archive-contents package-alist)))))
+
 (defun eask-package--version (name &optional current)
   "Return package's version.
 
@@ -1046,6 +1176,7 @@ For arguments NAME and CURRENT, please see function `eask-package-desc' for
 full detials."
   (when-let* ((desc (eask-package-desc name current)))
     (package-desc-version desc)))
+
 (defun eask-package--version-string (pkg)
   "Return PKG's version."
   (if-let* ((version (or (eask-package--version pkg t)
@@ -1053,11 +1184,13 @@ full detials."
       (package-version-join version)
     ;; Just in case, but this should never happens!
     "0"))
+
 (defun eask-package-desc-url ()
   "Return url from package descriptor."
   (when eask-package-desc
     (when-let* ((extras (package-desc-extras eask-package-desc)))
       (cdr (assoc :url extras)))))
+
 (defun eask-package-desc-keywords ()
   "Return keywords from package descriptor."
   (when eask-package-desc
@@ -1067,107 +1200,142 @@ full detials."
              (with-temp-buffer
                (insert-file-contents eask-package-file)
                (lm-keywords-list))))))
+
 (defun eask-pkg-el ()
   "Return package description file if exists."
   (let ((pkg-el (package--description-file default-directory)))
     (when (file-readable-p pkg-el) pkg-el)))
+
 (defun eask--str2num (str)
   "Convert string (STR) to number."
   (ignore-errors (string-to-number str)))
+
 (defun eask--flag (flag)
   "Return non-nil if FLAG exists."
   (member (concat "--eask" flag) eask-argv))
+
 (defun eask--flag-value (flag)
   "Return value for FLAG."
   (nth 1 (eask--flag flag)))
+
 (defun eask-global-p ()
   "Non-nil when in global space (`-g', `--global')."
   (eask--flag "-g"))
+
 (defun eask-config-p ()
   "Non-nil when in config space (`-c', `--config')."
   (eask--flag "-c"))
+
 (defun eask-local-p ()
   "Non-nil when in local space (default)."
   (and (not (eask-global-p))
        (not (eask-config-p))))
+
 (defun eask-all-p ()
   "Non-nil when flag is on (`-a', `--all')."
   (eask--flag "-a"))
+
 (defun eask-quick-p ()
   "Non-nil when flag is on (`-q', `--quick')."
   (eask--flag "-q"))
+
 (defun eask-force-p ()
   "Non-nil when flag is on (`-f', `--force')."
   (eask--flag "-f"))
+
 (defun eask-dev-p ()
   "Non-nil when flag is on (`--dev', `--development')."
   (eask--flag "--dev"))
+
 (defun eask-debug-p ()
   "Non-nil when flag is on (`--debug')."
   (eask--flag "--debug"))
+
 (defun eask-strict-p ()
   "Non-nil when flag is on (`--strict')."
   (eask--flag "--strict"))
+
 (defun eask-timestamps-p ()
   "Non-nil when flag is on (`--timestamps')."
   (eask--flag "--timestamps"))
+
 (defun eask-log-level-p ()
   "Non-nil when flag is on (`--log-level')."
   (eask--flag "--log-level"))
+
 (defun eask-log-file-p ()
   "Non-nil when flag is on (`--log-file', `--lf')."
   (eask--flag "--log-file"))
+
 (defun eask-elapsed-time-p ()
   "Non-nil when flag is on (`--elapsed-time', `--et')."
   (eask--flag "--elapsed-time"))
+
 (defun eask-allow-error-p ()
   "Non-nil when flag is on (`--allow-error')."
   (eask--flag "--allow-error"))
+
 (defun eask-insecure-p ()
   "Non-nil when flag is on (`--insecure')."
   (eask--flag "--insecure"))
+
 (defun eask-no-color-p ()
   "Non-nil when flag is on (`--no-color')."
   (eask--flag "--no-color"))
+
 (defun eask-clean-p ()
   "Non-nil when flag is on (`-c', `--clean')."
   (eask--flag "--clean"))
+
 (defun eask-json-p ()
   "Non-nil when flag is on (`--json')."
   (eask--flag "--json"))
+
 (defun eask-number-p ()
   "Non-nil when flag is on (`-n', `--number')."
   (eask--flag "--number"))
+
 (defun eask-yes-p ()
   "Non-nil when flag is on (`--yes')."
   (eask--flag "--yes"))
+
 (defun eask-output ()
   "Non-nil when flag has value (`--o', `--output')."
   (eask--flag-value "--output"))
+
 (defun eask-proxy ()
   "Non-nil when flag has value (`--proxy')."
-  (eask--flag-value "--proxy"))        ; --proxy
+  (eask--flag-value "--proxy"))
+        ; --proxy
+
 (defun eask-http-proxy ()
   "Non-nil when flag has value (`--http-proxy')."
   (eask--flag-value "--http-proxy"))
+
 (defun eask-https-proxy ()
   "Non-nil when flag has value (`--https-proxy')."
   (eask--flag-value "--https-proxy"))
+
 (defun eask-no-proxy ()
   "Non-nil when flag has value (`--no-proxy')."
   (eask--flag-value "--no-proxy"))
+
 (defun eask-destination ()
   "Non-nil when flag has value (`--dest', `--destination')."
   (eask--flag-value "--dest"))
+
 (defun eask-from ()
   "Non-nil when flag has value (`--from')."
   (eask--flag-value "--from"))
+
 (defun eask-depth ()
   "Non-nil when flag has value (`--depth')."
   (eask--str2num (eask--flag-value "--depth")))
+
 (defun eask-verbose ()
   "Non-nil when flag has value (`-v', `--verbose')."
   (eask--str2num (eask--flag-value "--verbose")))
+
 (defun eask--handle-global-options ()
   "Handle global options."
   (when (eask-debug-p)        (setq debug-on-error t))
@@ -1185,14 +1353,17 @@ full detials."
   (eask--add-proxy "http"     (eask-http-proxy))
   (eask--add-proxy "https"    (eask-https-proxy))
   (eask--add-proxy "no_proxy" (eask-no-proxy)))
+
 (defun eask--add-proxy (protocal host)
   "Add proxy.
 
 Argument PROTOCAL and HOST are used to construct scheme."
   (when host (push (cons protocal (eask-proxy)) url-proxy-services)))
+
 (defun eask--form-options (options)
   "Add --eask to all OPTIONS."
   (mapcar (lambda (elm) (concat "--eask" elm)) options))
+
 (defconst eask--option-switches
   (eask--form-options
    '("-g" "-c" "-a" "-q" "-f" "--dev"
@@ -1208,6 +1379,7 @@ Argument PROTOCAL and HOST are used to construct scheme."
      "--number"
      "--yes"))
   "List of boolean type options.")
+
 (defconst eask--option-args
   (eask--form-options
    '("--output"
@@ -1215,15 +1387,19 @@ Argument PROTOCAL and HOST are used to construct scheme."
      "--verbose" "--silent"
      "--depth" "--dest" "--from"))
   "List of arguments (number/string) type options.")
+
 (defconst eask--command-list
   (append eask--option-switches eask--option-args)
   "List of commands to accept, so we can avoid unknown option error.")
+
 (defun eask-self-command-p (arg)
   "Return non-nil if ARG is known internal command."
   (member arg eask--command-list))
+
 (defun eask-argv (index)
   "Return argument value by INDEX."
   (elt eask-argv index))
+
 (defun eask-argv-out ()
   "Convert all internal arguments to external arguments.
 
@@ -1231,6 +1407,7 @@ Simply remove `--eask' for each option, like `--eask--strict' to `--strict'."
   (mapcar (lambda (arg)
             (eask-s-replace "--eask" "" arg))
           eask-argv))
+
 (defun eask-args (&optional index)
   "Get all arguments except options
 
@@ -1244,6 +1421,7 @@ If the optional argument INDEX is non-nil, return the element."
           (push arg args))))
     (setq args (reverse args))
     (if index (nth 0 args) args)))
+
 (defconst eask-file-keywords
   '("package" "website-url" "keywords"
     "author" "license"
@@ -1253,6 +1431,7 @@ If the optional argument INDEX is non-nil, return the element."
     "depends-on" "development"
     "exec-paths" "load-paths")
   "List of Eask file's DSL keywords.")
+
 (defun eask--loop-file-keywords (func)
   "Loop through Eask file keywords for environment replacement.
 
@@ -1265,15 +1444,18 @@ Internal used for function `eask--alias-env'."
           (api (intern (concat "eask-f-" keyword)))    ; existing function
           (old (intern (concat "eask--f-" keyword))))  ; variable that holds function pointer
       (funcall func keyword-sym api old))))
+
 (defun eask-working-directory ()
   "Return the working directory of the program going to be executed."
   (cond ((eask-config-p) user-emacs-directory)
         ((eask-global-p) (expand-file-name "../../" user-emacs-directory))
         (t default-directory)))
+
 (defun eask-root-del (filename)
   "Remove Eask file root path from FILENAME."
   (when (stringp filename)
     (eask-s-replace (or eask-file-root default-directory) "" filename)))
+
 (defun eask-file-load (location &optional noerror)
   "Load Eask file in the LOCATION.
 
@@ -1285,6 +1467,7 @@ function `load' for more detials."
           eask-file-root (file-name-directory target-eask-file))
     (run-hooks 'eask-file-loaded-hook)
     result))
+
 (defun eask--match-file (name)
   "Check to see if NAME is our target Eask-file, then return it."
   (let (;; Ensure path to filename
@@ -1298,6 +1481,7 @@ function `load' for more detials."
         (p-eask           "Eask"))
     (car (member name (list p-easkfile-full p-easkfile-major p-easkfile
                             p-eask-full p-eask-major p-eask)))))
+
 (defun eask--all-files (&optional dir)
   "Return a list of Eask files from DIR.
 
@@ -1308,6 +1492,7 @@ If argument DIR is nil, we use `default-directory' instead."
                       (ignore-errors (directory-files dir t "Eask[.0-9]*\\'"))))
               (files (cl-remove-if #'file-directory-p files)))
     (cl-remove-if-not #'eask--match-file files)))
+
 (defun eask--find-files (start-path)
   "Find the Eask-file from START-PATH.
 
@@ -1325,12 +1510,14 @@ This uses function `locate-dominating-file' to look up directory tree."
                             (and (string-prefix-p "Easkfile" item1)
                                  (not (string-prefix-p "Easkfile" item2)))))))
     files))
+
 (defun eask-file-try-load (start-path)
   "Try load the Eask-file in START-PATH."
   (when-let* ((files (eask--find-files start-path))
               (file (car files)))
     ;; Revert printing behaviour when loading Eask-file.
     (eask--unsilent (eask-file-load file))))
+
 (defun eask--load-config ()
   "Load configuration if valid."
   (let ((inhibit-config (eask-quick-p)))
@@ -1345,9 +1532,11 @@ This uses function `locate-dominating-file' to look up directory tree."
           (load eask-dot-emacs-file t t)
           (load user-init-file t t)))
       (ansi-green (if inhibit-config "skipped ✗" "done ✓")))))
+
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
+
 (defconst eask-source-mapping
   `((gnu          . "https://elpa.gnu.org/packages/")
     (nongnu       . "https://elpa.nongnu.org/nongnu/")
@@ -1363,26 +1552,33 @@ This uses function `locate-dominating-file' to look up directory tree."
     (gnu-devel    . "https://elpa.gnu.org/devel/")
     (nongnu-devel . "https://elpa.nongnu.org/nongnu-devel/"))
   "Mapping of source name and url.")
+
 (defun eask-source-url (name &optional location)
   "Get the source url by it's NAME and LOCATION."
   (setq location (or location (cdr (assq (intern (eask-2str name)) eask-source-mapping)))
         location (eask-2url location))
   location)
+
 (defun eask-package--get (key)
   "Return package info by KEY."
   (plist-get eask-package key))
+
 (defun eask-package-name ()
   "Return current package's name."
   (eask-package--get :name))
+
 (defun eask-package-version ()
   "Return current package's version number."
   (eask-package--get :version))
+
 (defun eask-package-description ()
   "Return current package's description."
   (eask-package--get :description))
+
 (defun eask-depends-emacs-version ()
   "Get Eask-file Emacs version string."
   (nth 0 (cdar eask-depends-on-emacs)))
+
 (defun eask-f-package (name version description)
   "Set the package information.
 
@@ -1395,16 +1591,19 @@ version number.  DESCRIPTION is the package description."
       (eask--checker-string "Name" name)
       (version= version "0.1.0")
       (eask--checker-string "Description" description))))
+
 (defun eask-f-website-url (url)
   "Set website URL."
   (if eask-website-url
       (eask-error "Multiple definition of `website-url'")
     (setq eask-website-url url)))
+
 (defun eask-f-keywords (&rest keywords)
   "Set package KEYWORDS."
   (if eask-keywords
       (eask-error "Multiple definition of `keywords'")
     (setq eask-keywords keywords)))
+
 (defun eask-f-author (name &optional email)
   "Set package author's NAME and EMAIL."
   (if (member name (mapcar #'car eask-authors))
@@ -1413,11 +1612,13 @@ version number.  DESCRIPTION is the package description."
                (not (string-match-p "@" email)))
       (eask-warn "Email seems to be invalid, %s" email))
     (push (cons name email) eask-authors)))
+
 (defun eask-f-license (name)
   "Set package license NAME."
   (if (member name eask-licenses)
       (eask-warn "Warning regarding duplicate license name, %s" name)
     (push name eask-licenses)))
+
 (defun eask--try-construct-package-desc (file)
   "Try construct the package descriptor from FILE."
   (let (skipped)
@@ -1438,6 +1639,7 @@ version number.  DESCRIPTION is the package description."
                        (skipped           "skipped!")
                        (t                 "failed!")))
                 (file-name-nondirectory file)))))
+
 (defun eask-f-package-file (file)
   "Set package FILE."
   (if eask-package-file
@@ -1453,6 +1655,7 @@ version number.  DESCRIPTION is the package description."
       (eask-f-package-descriptor pkg-file)
       ;; XXX: Make sure DSL package descriptor is set back to `nil'
       (setq eask-package-descriptor nil))))
+
 (defun eask-f-package-descriptor (pkg-file)
   "Set package PKG-FILE."
   (cond
@@ -1469,9 +1672,11 @@ version number.  DESCRIPTION is the package description."
            (eask-warn "Pkg-file seems to be missing `%s'" pkg-file))
           (t
            (eask--try-construct-package-desc eask-package-descriptor))))))
+
 (defun eask-f-files (&rest patterns)
   "Set files PATTERNS."
   (setq eask-files (append eask-files patterns)))
+
 (defun eask-f-script (name command &rest args)
   "Add a script command.
 
@@ -1485,6 +1690,7 @@ argument COMMAND."
   (push (cons name
               (mapconcat #'identity (append (list command) args) " "))
         eask-scripts))
+
 (defun eask-f-source (name &optional location)
   "Add archive NAME with LOCATION."
   (when (symbolp name) (setq name (eask-2str name)))  ; ensure to string, accept symbol
@@ -1497,10 +1703,12 @@ argument COMMAND."
   (setq location (eask-source-url name location))
   (unless location (eask-error "Unknown package archive `%s'" name))
   (add-to-list 'package-archives (cons name location) t))
+
 (defun eask-f-source-priority (name &optional priority)
   "Add PRIORITY for to NAME."
   (when (symbolp name) (setq name (eask-2str name)))  ; ensure to string, accept symbol
   (add-to-list 'package-archive-priorities (cons name priority) t))
+
 (defun eask--setup-dependencies ()
   "Setup dependencies list."
   (setq eask-depends-on (reverse eask-depends-on)
@@ -1522,6 +1730,7 @@ argument COMMAND."
           (add-to-list 'package-archive-priorities
                        `(,eask--local-archive-name . 90) t)))
       "done!")))
+
 (defun eask--check-depends-on (recipe)
   "Return non-nil if RECIPE is invalid."
   (let ((pkg (car recipe))
@@ -1532,6 +1741,7 @@ argument COMMAND."
                       (string= (car rcp) pkg))
                     eask-depends-on)
            (eask-error "Define dependencies with the same name `%s' with different version" pkg)))))
+
 (defun eask-f-depends-on (pkg &rest args)
   "Specify a dependency (PKG) of this package.
 
@@ -1576,6 +1786,7 @@ ELPA)."
             (ansi-blue "done ✓")))
         (setq eask-depends-on-recipe-p t))
       recipe))))
+
 (defun eask-f-development (&rest dep)
   "Development scope with list of DEP."
   (setq dep (cl-remove-if #'null dep))  ; make sure no `nil', see #143
@@ -1583,12 +1794,15 @@ ELPA)."
     (push pkg eask-depends-on-dev)
     (delete-dups eask-depends-on-dev)
     (setq eask-depends-on (remove pkg eask-depends-on))))
+
 (defun eask-f-exec-paths (&rest dirs)
   "Add all DIRS to the variable `exec-path'."
   (dolist (dir dirs) (add-to-list 'exec-path (expand-file-name dir) t)))
+
 (defun eask-f-load-paths (&rest dirs)
   "Add all DIRS to to the variable `load-path'."
   (dolist (dir dirs) (add-to-list 'load-path (expand-file-name dir) t)))
+
 (defun eask--verb2lvl (symbol)
   "Convert verbosity SYMBOL to level."
   (cl-case symbol
@@ -1599,14 +1813,17 @@ ELPA)."
     (`warn  1)
     (`error 0)
     (t symbol)))
+
 (defun eask-reach-verbosity-p (symbol)
   "Return t if SYMBOL reach verbosity (should be printed)."
   (>= eask-verbosity (eask--verb2lvl symbol)))
+
 (defun eask--ansi (symbol string)
   "Paint STRING with color defined by log level (SYMBOL)."
   (if-let* ((ansi-function (cdr (assq symbol eask-level-color))))
       (funcall ansi-function string)
     string))
+
 (defun eask--format (prefix fmt &rest args)
   "Format Eask messages.
 
@@ -1617,6 +1834,7 @@ and ARGS are used to pass through function `format'."
                  (when eask-log-level (concat prefix " "))
                  fmt)
          args))
+
 (defun eask--msg (symbol prefix msg &rest args)
   "If level (SYMBOL) is at or below `eask-verbosity'; then, log the message.
 
@@ -1630,45 +1848,55 @@ detials."
                    ((or error warn) symbol)
                    (t #'message))))
       (funcall func "%s" output))))
+
 (defun eask-debug (msg &rest args)
   "Send debug message; see function `eask--msg' for arguments MSG and ARGS."
   (apply #'eask--msg 'debug "[DEBUG]" msg args))
+
 (defun eask-log (msg &rest args)
   "Send log message; see function `eask--msg' for arguments MSG and ARGS."
   (apply #'eask--msg 'log   "[LOG]" msg args))
+
 (defun eask-info (msg &rest args)
   "Send info message; see function `eask--msg' for arguments MSG and ARGS."
   (apply #'eask--msg 'info  "[INFO]" msg args))
+
 (defun eask-warn (msg &rest args)
   "Send warn message; see function `eask--msg' for arguments MSG and ARGS."
   (apply #'eask--msg 'warn  "[WARNING]" msg args))
+
 (defun eask-error (msg &rest args)
   "Send error message; see function `eask--msg' for arguments MSG and ARGS."
   (apply #'eask--msg 'error "[ERROR]" msg args))
+
 (defun eask--msg-paint-kwds (string)
   "Paint keywords from STRING."
   (let* ((string (eask-s-replace "✓" (ansi-green "✓") string))
          (string (eask-s-replace "✗" (ansi-red "✗") string))
          (string (eask-s-replace "💡" (ansi-yellow "💡") string)))
     string))
+
 (defun eask--msg-char-displayable (char replacement string)
   "Ensure CHAR is displayable in STRING; if not, we fallback to REPLACEMENT
 character."
   (if (char-displayable-p (string-to-char char))
       string
     (eask-s-replace char replacement string)))
+
 (defun eask--msg-displayable-kwds (string)
   "Make sure all keywords is displayable in STRING."
   (let* ((string (eask--msg-char-displayable "✓" "v" string))
          (string (eask--msg-char-displayable "✗" "X" string))
          (string (eask--msg-char-displayable "💡" "<?>" string)))
     string))
+
 (defun eask--format-paint-kwds (msg &rest args)
   "Paint keywords after format MSG and ARGS."
   (let* ((string (apply #'format msg args))
          (string (eask--msg-paint-kwds string))
          (string (eask--msg-displayable-kwds string)))
     string))
+
 (defun eask-princ (object &optional stderr)
   "Like function `princ'; with flag STDERR.
 
@@ -1677,17 +1905,20 @@ For argument OBJECT, please see function `princ' for the detials.
 If optional argument STDERR is non-nil; use stderr instead."
   (unless inhibit-message
     (princ object (when stderr #'external-debugging-output))))
+
 (defun eask-print (msg &rest args)
   "Standard output printing without newline.
 
 For arguments MSG and ARGS, please see function `eask--format-paint-kwds' for
 the detials."
   (eask-princ (apply #'eask--format-paint-kwds msg args)))
+
 (defun eask-println (msg &rest args)
   "Like the function `eask-print' but contains the newline at the end.
 
 For arguments MSG and ARGS, please see function `eask-print' for the detials."
   (apply #'eask-print (concat msg "\n") args))
+
 (defun eask-msg (msg &rest args)
   "Like the function `message' but replace unicode with color.
 
@@ -1695,29 +1926,35 @@ For arguments MSG and ARGS, please see function `eask--format-paint-kwds' for
 the detials."
   (apply #'eask-write msg args)
   (eask-princ "\n" t))
+
 (defun eask-write (msg &rest args)
   "Like the function `eask-msg' but without newline at the end.
 
 For arguments MSG and ARGS, please see function `eask-msg' for the detials."
   (eask-princ (apply #'eask--format-paint-kwds msg args) t))
+
 (defun eask-report (&rest args)
   "Report error/warning depends on strict flag.
 
 Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
   (apply (if (eask-strict-p) #'eask-error #'eask-warn) args))
+
 (defconst eask--exit-code
   `((success . 0)   ; Unused
     (failure . 1)   ; Catchall for general errors
     (misuse  . 2))
   "Exit code specification.")
+
 (defun eask-exit-code (key)
   "Return the exit code by KEY symbol."
   (alist-get key eask--exit-code))
+
 (defun eask--exit (&optional exit-code &rest _)
   "Kill Emacs with EXIT-CODE (default 1)."
   (kill-emacs (or (cond ((numberp exit-code) exit-code)
                         ((symbolp exit-code) (eask-exit-code exit-code)))
                   (eask-exit-code 'failure))))
+
 (defun eask--trigger-error ()
   "Trigger error event."
   (when (and (not eask--ignore-error-p)
@@ -1725,6 +1962,7 @@ Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
     (if (eask-allow-error-p)  ; Trigger error at the right time
         (add-hook 'eask-after-command-hook #'eask--exit)
       (eask--exit))))
+
 (defun eask--error (fnc &rest args)
   "On error.
 
@@ -1735,6 +1973,7 @@ Arguments FNC and ARGS are used for advice `:around'."
     (run-hook-with-args 'eask-on-error-hook 'error msg)
     (eask--trigger-error))
   (when debug-on-error (apply fnc args)))
+
 (defun eask--warn (fnc &rest args)
   "On warn.
 
@@ -1744,16 +1983,20 @@ Arguments FNC and ARGS are used for advice `:around'."
       (eask--unsilent (eask-msg "%s" msg)))
     (run-hook-with-args 'eask-on-warning-hook 'warn msg))
   (eask--silent (apply fnc args)))
+
 (defconst eask-log-path ".log"
   "Directory path to create log files.")
+
 (defun eask-files-spec ()
   "Return files spec."
   (or eask-files package-build-default-files-spec))
+
 (defun eask-expand-file-specs (specs)
   "Expand file SPECS."
   (mapcar (lambda (elm) (expand-file-name (car elm) default-directory))
           (ignore-errors  ; The new files spec will trigger error, wrap it
             (package-build-expand-files-spec nil nil default-directory specs))))
+
 (defun eask-package-files ()
   "Return package files in workspace."
   (let ((files (eask-expand-file-specs (eask-files-spec))))
@@ -1764,27 +2007,33 @@ Arguments FNC and ARGS are used for advice `:around'."
     (unless files
       (eask-debug "No matching file(s) found in %s: %s" default-directory (eask-files-spec)))
     files))
+
 (defun eask-package-el-files ()
   "Return package files in workspace."
   (cl-remove-if-not (lambda (filename) (string= (file-name-extension filename) "el")) (eask-package-files)))
+
 (defun eask-package-elc-files ()
   "Return package files' elc in workspace."
   (when-let* ((elcs (mapcar (lambda (elm) (concat elm "c")) (eask-package-el-files))))
     (setq elcs (cl-remove-if-not (lambda (elm) (file-exists-p elm)) elcs))
     elcs))
+
 (defun eask-package-multi-p ()
   "Return t if multi-files package."
   (or (bound-and-true-p package-build-build-function)
       (< 1 (length (eask-package-files)))))
+
 (defun eask-package-single-p ()
   "Return t if single file package."
   (not (eask-package-multi-p)))
+
 (defun eask-unpacked-size ()
   "Return unpacked size."
   (let ((size 0))
     (dolist (filename (eask-package-files))
       (cl-incf size (file-attribute-size (file-attributes filename))))
     (string-trim (ls-lisp-format-file-size size t))))
+
 (defun eask--help-display ()
   "Display help instruction."
   (goto-char (point-min))
@@ -1798,6 +2047,7 @@ Arguments FNC and ARGS are used for advice `:around'."
     (eask-msg (concat "''" (spaces-string max-column) "''"))
     (eask-msg (ansi-white (buffer-string)))
     (eask-msg (concat "''" (spaces-string max-column) "''"))))
+
 (defun eask-help (command &optional print-or-exit-code)
   "Show COMMAND's help instruction.
 
@@ -1824,12 +2074,15 @@ would send exit code of `1'."
                  (eask--exit print-or-exit-code))
                 (t )))  ; Don't exit with anything else.
       (eask-error "Help manual missing %s" help-file))))
+
 (defun eask--checker-existence ()
   "Return errors if required metadata is missing."
   (unless eask-package (eask-error "Missing metadata package; make sure you have created an Eask-file with $ eask init!")))
+
 (defun eask--check-strings (fmt f p &rest args)
   "Test strings (F and P); then print FMT and ARGS if not equal."
   (unless (string= f p) (apply #'eask-warn (append (list fmt f p) args))))
+
 (defun eask--check-optional (f p msg1 msg2 msg3 msg4)
   "Conditional way to check optional headers, URL and KEYWORDS.
 
@@ -1841,6 +2094,7 @@ Arguments MSG1, MSG2, MSG3 and MSG4 are conditional messages."
         (f (eask-warn msg2))
         (p (eask-warn msg3))
         (t (eask-warn msg4))))
+
 (defun eask--checker-metadata ()
   "Report warnings if metadata doesn't match."
   (when-let* (((and eask-package eask-package-desc))
@@ -1898,6 +2152,7 @@ Arguments MSG1, MSG2, MSG3 and MSG4 are conditional messages."
       (dolist (dep dependencies)
         (unless (member dep requirements)
           (eask-warn "Unmatched dependency '%s'; add (%s \"VERSION\") to %s or consider removing it" dep dep def-point))))))
+
 (defun eask--checker-string (name var)
   "Run checker for package's metadata.
 
@@ -1907,19 +2162,25 @@ variable we use to test validation."
     (eask-error "%s must be a string" name))
   (when (string-empty-p var)
     (eask-warn "%s cannot be an empty string" name)))
+
 (defun eask-lint-first-newline ()
   "Built-in linters will create extra newline, prevent that!"
   (when eask-lint-first-file-p
     (eask-msg ""))
   (setq eask-lint-first-file-p t))
 
+
 ;; ~/lisp/clean/all.el
+
 (defvar eask-no-cleaning-operation-p nil
   "Set to non-nil if there is no cleaning operation done.")
+
 (defvar eask-clean-all--tasks-count 0
   "Count cleaning task.")
+
 (defvar eask-clean-all--tasks-cleaned 0
   "Total cleaned tasks.")
+
 (defmacro eask--clean-section (title &rest body)
   "Print clean up TITLE and execute BODY."
   (declare (indent 1))
@@ -1933,12 +2194,15 @@ variable we use to test validation."
            "skipped ✗"
          (cl-incf eask-clean-all--tasks-cleaned)
          "done ✓"))))
+
 (defconst eask-clean-all--tasks-total 6
   "Count cleaning task.")
+
 
 ;; ~/lisp/clean/autoloads.el
 
 ;; ~/lisp/clean/dist.el
+
 (defun eask-clean-dist (path)
   "Clean up dist PATH."
   (let* ((name (eask-guess-package-name))
@@ -1963,9 +2227,11 @@ variable we use to test validation."
                (if delete-dir "1" "0")
                (- 3 deleted))))
 
+
 ;; ~/lisp/clean/elc.el
 
 ;; ~/lisp/clean/log-file.el
+
 (defun eask-clean-log-file (path)
   "Clean up .log PATH."
   (let ((log-files '("messages.log"
@@ -1990,6 +2256,7 @@ variable we use to test validation."
                (if delete-dir "1" "0")
                (- (length log-files) deleted))))
 
+
 ;; ~/lisp/clean/pkg-file.el
 
 ;; ~/lisp/clean/workspace.el
@@ -1998,13 +2265,16 @@ variable we use to test validation."
 (defvar eask-analyze--log nil)
 (defvar eask-analyze--warnings nil)
 (defvar eask-analyze--errors nil)
+
 (defun eask-analyze--pretty-json (json)
   "Return pretty JSON."
   (with-temp-buffer (insert json) (json-pretty-print-buffer) (buffer-string)))
+
 (defun eask-analyze--load-buffer ()
   "Return the current file loading session."
   (car (cl-remove-if-not
         (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
+
 (defun eask-analyze--write-json-format (level msg)
   "Prepare log for JSON format.
 
@@ -2032,6 +2302,7 @@ information."
           (cl-case level
             (`error eask-analyze--errors)
             (`warn  eask-analyze--warnings)))))
+
 (defun eask-analyze--write-plain-text (level msg)
   "Prepare log for plain text format.
 
@@ -2047,6 +2318,7 @@ information."
                       level-string
                       msg)))
     (push (ansi-color-filter-apply log) eask-analyze--log)))
+
 (defun eask-analyze--write-log (level msg)
   "Write the log.
 
@@ -2057,6 +2329,7 @@ Argument LEVEL and MSG are data from the debug log signal."
        (cond ((eask-json-p) #'eask-analyze--write-json-format)
              (t             #'eask-analyze--write-plain-text))
        level msg))))
+
 (defun eask-analyze--file (files)
   "Lint list of Eask FILES."
   (let (checked-files content)
@@ -2091,10 +2364,12 @@ Argument LEVEL and MSG are data from the debug log signal."
     (when (and content (eask-output))
       (write-region content nil (eask-output)))))
 
+
 ;; ~/lisp/core/archives.el
 (defvar eask-archive--length-name)
 (defvar eask-archive--length-url)
 (defvar eask-archive--length-priority)
+
 (defun eask-archive--print (archive)
   "Print the ARCHIVE."
   (let* ((name (car archive))
@@ -2105,6 +2380,7 @@ Argument LEVEL and MSG are data from the debug log signal."
      (concat "  %-" eask-archive--length-name "s  %-" eask-archive--length-url
              "s  %-" eask-archive--length-priority "s")
      name (eask-2url url) (or priority 0))))
+
 (defun eask-archive--print-alist (alist)
   "Print the archvie ALIST."
   (let* ((names (mapcar #'car alist))
@@ -2115,26 +2391,33 @@ Argument LEVEL and MSG are data from the debug log signal."
          (eask-archive--length-priority (eask-2str (eask-seq-str-max priorities))))
     (mapc #'eask-archive--print alist)))
 
+
 ;; ~/lisp/core/bump.el
+
 (defun eask-bump--version (version index)
   "Bump VERSION with INDEX."
   (let ((lst (if (stringp version) (version-to-list version) version)))
     (setf (nth index lst) (cl-incf (nth index lst)))
     (mapconcat #'eask-2str lst version-separator)))
+
 (defun eask-bump--version-major-version (version)
   "Bump VERSION major level."
   (eask-bump--version version 0))
+
 (defun eask-bump--version-minor-version (version)
   "Bump VERSION minor level."
   (eask-bump--version version 1))
+
 (defun eask-bump--version-patch-level (version)
   "Bump VERSION patch level."
   (eask-bump--version version 2))
+
 
 ;; ~/lisp/core/cat.el
 
 ;; ~/lisp/core/compile.el
 (require 'bytecomp nil t)
+
 (defun eask-compile--print-log ()
   "Print `*Compile-Log*' buffer."
   (when (get-buffer byte-compile-log-buffer)
@@ -2143,6 +2426,7 @@ Argument LEVEL and MSG are data from the debug log signal."
           (eask-error (buffer-string))  ; Exit with error code!
         (eask-print-log-buffer))
       (eask-msg ""))))
+
 (defun eask-compile--byte-compile-file-external-content (filename cmd)
   "Extract result after executing byte-compile the FILENAME.
 
@@ -2162,6 +2446,7 @@ The CMD is the command to start a new Emacs session."
       (goto-char (point-max))
       (delete-region (line-beginning-position -1) (point-max)))
     (string-trim (buffer-string))))
+
 (defun eask-compile--byte-compile-file-external (filename)
   "Byte compile FILENAME with clean environment by opening a new Emacs session."
   (let* ((cmd (split-string eask-invocation "\n" t))
@@ -2180,6 +2465,7 @@ The CMD is the command to start a new Emacs session."
         t  ; no error, good!
       (with-current-buffer (get-buffer-create byte-compile-log-buffer)
         (insert content)))))
+
 (defun eask-compile--byte-compile-file (filename)
   "Byte compile FILENAME."
   ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
@@ -2197,6 +2483,7 @@ The CMD is the command to start a new Emacs session."
       (unless byte-compile-verbose (if result "done ✓" "skipped ✗")))
     (eask-compile--print-log)
     result))
+
 (defun eask-compile--files (files)
   "Compile sequence of FILES."
   (let* ((compiled (cl-remove-if-not #'eask-compile--byte-compile-file files))
@@ -2209,10 +2496,12 @@ The CMD is the command to start a new Emacs session."
                (eask--sinr compiled "" "s")
                skipped)))
 
+
 ;; ~/lisp/core/concat.el
 
 ;; ~/lisp/core/docs.el
 (require 'el2org nil t)
+
 (defun eask-docs--to-html (el-file)
   "Generate html file from EL-FILE."
   (interactive)
@@ -2223,20 +2512,26 @@ The CMD is the command to start a new Emacs session."
     (eask-with-verbosity 'debug
       (el2org-generate-file el-file nil 'html html-file t))))
 
+
 ;; ~/lisp/core/emacs.el
 
 ;; ~/lisp/core/eval.el
 
 ;; ~/lisp/core/exec-path.el
+
 (defun eask-exec-path--print (path)
   "Print out the PATH."
   (eask-println "%s" path))
 
+
 ;; ~/lisp/core/exec.el
+
 (defconst eask-exec--exec-path-file (expand-file-name "exec-path" eask-homedir)
   "Target file to export the variable `exec-path'.")
+
 (defconst eask-exec--load-path-file (expand-file-name "load-path" eask-homedir)
   "Target file to export the variable `load-path'.")
+
 (defun eask-exec-export-env ()
   "Export environments."
   (ignore-errors (delete-file eask-exec--exec-path-file))
@@ -2245,13 +2540,17 @@ The CMD is the command to start a new Emacs session."
   (write-region (getenv "PATH") nil eask-exec--exec-path-file)
   (write-region (getenv "EMACSLOADPATH") nil eask-exec--load-path-file))
 
+
 ;; ~/lisp/core/files.el
+
 (defun eask-files--print-filename (filename)
   "Print out the FILENAME."
   (eask-println "%s" filename))
 
+
 ;; ~/lisp/core/info.el
 (defvar eask-info--max-offset 0)
+
 (defun eask-info--print-deps (title dependencies)
   "Print DEPENDENCIES with TITLE identifier."
   (when dependencies
@@ -2273,7 +2572,9 @@ The CMD is the command to start a new Emacs session."
           (eask-println (concat "  %-" offset "s (%s)") (car dep) target-version)
           (eask-debug "    Recipe: %s" (car dep)))))))
 
+
 ;; ~/lisp/core/init.el
+
 (defun eask-init--check-filename (name)
   "Return non-nil if NAME is a valid Eask-file."
   (when-let* ((name (file-name-nondirectory (directory-file-name name)))
@@ -2283,9 +2584,11 @@ The CMD is the command to start a new Emacs session."
       (or (null suffix)
           (string-match-p "^[.][.0-9]*$" suffix)))))
 
+
 ;; ~/lisp/core/install-deps.el
 
 ;; ~/lisp/core/install-file.el
+
 (defun eask-install-file--get-package-name (path)
   "Get the package name from PATH, which is a file, directory or archive."
   (cond
@@ -2317,6 +2620,7 @@ The CMD is the command to start a new Emacs session."
         ;; and no `.el' files at path
         (eask-error "No package in %s" path))
       (package-desc-name pkg-desc)))))
+
 (defun eask-install-file--packages (files)
   "The file install packages with FILES."
   (let* ((deps (mapcar (lambda (file)
@@ -2337,10 +2641,13 @@ The CMD is the command to start a new Emacs session."
     (eask-info "(Total of %s file package%s installed, %s skipped)"
                installed s skipped)))
 
+
 ;; ~/lisp/core/install-vc.el
+
 (defun eask-install-vc--guess-name (file)
   "Guess the package name of the install FILE."
   (file-name-sans-extension (file-name-nondirectory (directory-file-name file))))
+
 (defun eask-install-vc--split-sepcs (specs)
   "Split the SPECS and return a list of specification."
   (let ((new-specs)
@@ -2356,6 +2663,7 @@ The CMD is the command to start a new Emacs session."
     ;; Push thes rest of the specification.
     (push (reverse current-spec) new-specs)
     (cl-remove-if #'null (reverse new-specs))))
+
 (defun eask-install-vc--packages (specs)
   "The vc install packages with SPECS."
   (let* ((deps (eask-install-vc--split-sepcs specs))
@@ -2376,7 +2684,9 @@ The CMD is the command to start a new Emacs session."
     (eask-info "(Total of %s vc package%s installed, %s skipped)"
                installed s skipped)))
 
+
 ;; ~/lisp/core/install.el
+
 (defun eask-install--not-installed (names)
   "Return a list of not installed packages' NAMES."
   (cl-remove-if-not
@@ -2384,6 +2694,7 @@ The CMD is the command to start a new Emacs session."
      (or (eask-force-p)
          (not (package-installed-p (eask-intern name)))))
    names))
+
 (defun eask-install--packages (names)
   "Install packages with their NAMES."
   (let* ((names (mapcar #'eask-intern names))
@@ -2398,6 +2709,7 @@ The CMD is the command to start a new Emacs session."
     (eask-msg "")
     (eask-info "(Total of %s package%s installed, %s skipped)"
                installed s skipped)))
+
 (defun eask-install--package-file (file)
   "Old compatible version of function `package-install-file'.
 
@@ -2433,6 +2745,7 @@ For argument FILE, please see function `package-install-file' for the details."
             ;; clean up temporary file
             (delete-directory temp-dir t)))))))
 
+
 ;; ~/lisp/core/keywords.el
 (require 'finder nil t)
 
@@ -2440,9 +2753,11 @@ For argument FILE, please see function `package-install-file' for the details."
 (defvar eask-list--pkg-name-offset nil)
 (defvar eask-list--pkg-version-offset nil)
 (defvar eask-list--pkg-archive-offset nil)
+
 (defun eask-list--format-s (offset)
   "Format OFFSET."
   (concat " %-" (number-to-string offset) "s "))
+
 (defun eask-list--align (depth &optional rest)
   "Format string to align starting from the version number.
 
@@ -2455,6 +2770,7 @@ for string concatenation."
             (eask-list--format-s eask-list--pkg-version-offset)
             (eask-list--format-s eask-list--pkg-archive-offset)
             rest)))
+
 (defun eask-list--print-pkg (name depth max-depth pkg-alist)
   "Print NAME package information.
 
@@ -2476,6 +2792,7 @@ contents."
                 ((< depth max-depth)))
       (dolist (req reqs)
         (eask-list--print-pkg (car req) (1+ depth) max-depth pkg-alist)))))
+
 (defun eask-list--version-list (pkg-alist)
   "Return a list of versions.
 
@@ -2483,6 +2800,7 @@ PKG-ALIST is the archive contents."
   (mapcar (lambda (elm)
             (package-version-join (package-desc-version (cadr elm))))
           pkg-alist))
+
 (defun eask-list--archive-list (pkg-alist)
   "Return list of archives.
 
@@ -2490,6 +2808,7 @@ PKG-ALIST is the archive contents."
   (mapcar (lambda (elm)
             (or (package-desc-archive (cadr elm)) ""))
           pkg-alist))
+
 (defun eask-list (list pkg-alist &optional depth)
   "List packages.
 
@@ -2504,21 +2823,26 @@ is the deepness of the dependency nested level we want to go."
     (dolist (name list)
       (eask-list--print-pkg name 0 (or depth (eask-depth) 999) pkg-alist))))
 
+
 ;; ~/lisp/core/load-path.el
+
 (defun eask-load-path--print (path)
   "Print out the PATH."
   (eask-println "%s" path))
+
 (defun eask-load-path--filter (path)
   "Filter the PATH out by search regex."
   (cl-some (lambda (regex)
              (string-match-p regex path))
            (eask-args)))
 
+
 ;; ~/lisp/core/load.el
 
 ;; ~/lisp/core/loc.el
 (defvar eask-loc--lines 0)
 (defvar eask-loc--chars 0)
+
 (defun eask-loc--file (file)
   "Insert LOC information for FILE."
   (unless (file-directory-p file)
@@ -2531,12 +2855,14 @@ is the deepness of the dependency nested level we want to go."
       (cl-incf eask-loc--chars chars)
       (insert (format "| %s | %s | %s |\n" file lines chars)))))
 
+
 ;; ~/lisp/core/outdated.el
 
 ;; ~/lisp/core/package-directory.el
 
 ;; ~/lisp/core/package.el
 (declare-function package-directory-recipe "ext:package-recipe.el")
+
 (defun eask-package-dir--patterns ()
   "Return patterns for directory recipe."
   (if eask-files
@@ -2548,6 +2874,7 @@ is the deepness of the dependency nested level we want to go."
         ;; This would avoid error, single file doesn't match package name.
         (append eask-files (list eask-package-file)))
     package-build-default-files-spec))
+
 (defun eask-package-dir-recipe (version)
   "Form a directory recipe.
 
@@ -2560,20 +2887,25 @@ Argument VERSION is a string represent the version number of this package."
     (setf (slot-value rcp 'version) version)
     (setf (slot-value rcp 'time) (eask-current-time))
     rcp))
+
 (defun eask-package-packaged-name ()
   "Find a possible packaged name."
   (let ((name (eask-guess-package-name))
         (version (eask-package-version)))
     (concat name "-" version)))
+
 (defun eask-package--packaged-file (ext)
   "Find a possible packaged file with extension (EXT)."
   (expand-file-name (concat (eask-package-packaged-name) "." ext) eask-dist-path))
+
 (defun eask-package-packaged-file ()
   "Return generated package artifact; it could be a tar or el."
   (if (eask-package-multi-p) (eask-package--packaged-file "tar")
     (eask-package--packaged-file "el")))
 
+
 ;; ~/lisp/core/recipe.el
+
 (defun eask-recipe-string ()
   "Return the recipe format in string."
   (when-let* ((url (eask-package-desc-url)))
@@ -2594,11 +2926,13 @@ Argument VERSION is a string represent the version number of this package."
         (nconc recipe `(:files ,(append '(:defaults) eask-files))))
       recipe)))
 
+
 ;; ~/lisp/core/recompile.el
 
 ;; ~/lisp/core/refresh.el
 
 ;; ~/lisp/core/reinstall.el
+
 (defun eask-reinstall--packages (names)
   "Install packages by its NAMES."
   (let* ((names (mapcar #'eask-intern names))
@@ -2614,9 +2948,12 @@ Argument VERSION is a string represent the version number of this package."
     (eask-info "(Total of %s package%s reinstalled, %s skipped)"
                installed s skipped)))
 
+
 ;; ~/lisp/core/repl.el
+
 (defvar eask-repl--old-pos nil
   "Record the last position to output on the screen for the `ielm' buffer.")
+
 (defun eask-repl--output ()
   "Print the REPL result to screen."
   (unless eask-repl--old-pos (setq eask-repl--old-pos (point-min)))
@@ -2631,7 +2968,9 @@ Argument VERSION is a string represent the version number of this package."
     ;; Record last output position
     (setq eask-repl--old-pos (point))))
 
+
 ;; ~/lisp/core/search.el
+
 (defun eask-search--packages (query)
   "Filter available packages with QUERY."
   (let ((result))
@@ -2640,21 +2979,26 @@ Argument VERSION is a string represent the version number of this package."
         (push package result)))
     result))
 
+
 ;; ~/lisp/core/status.el
 (declare-function ansi-bright-black "ext:ansi.el")
 (declare-function ansi-underscore "ext:ansi.el")
+
 (defvar eask-status--info-count 0
   "Count of the stratus info.")
+
 (defun eask-status--environment-name ()
   "Get the working environment name."
   (cond ((eask-global-p) "global (~/)")
         ((eask-config-p) (format "configuration (%s)" user-emacs-directory))
         (t               "development (./)")))
+
 (defun eask-status--print-title (title)
   "Print section TITLE."
   (eask-println "")
   (eask-println (ansi-underscore title))
   (eask-println ""))
+
 (defun eask-status--print-info (fmt pair)
   "Print environment info with FMT and PAIR."
   (let ((title   (eask-2str (nth 0 pair)))
@@ -2664,6 +3008,7 @@ Argument VERSION is a string represent the version number of this package."
                   title
                   (ansi-bright-black content)
                   note)))
+
 (defun eask-status--list-max-length (lst index)
   "Return the LST max length by its INDEX."
   (let ((max-len 0)
@@ -2675,6 +3020,7 @@ Argument VERSION is a string represent the version number of this package."
                           (_ max-current))
             max-len (max (length max-current) max-len)))
     max-len))
+
 (defun eask-status--print-infos (lst)
   "Print environment info LST."
   (let* ((len-0 (eask-2str (eask-status--list-max-length lst 0)))  ; unused
@@ -2684,12 +3030,15 @@ Argument VERSION is a string represent the version number of this package."
       (when pair
         (eask-status--print-info fmt pair)
         (cl-incf eask-status--info-count)))))
+
 (defun eask-status--file-dir (path)
   "Return file directory status from PATH."
   (unless (file-exists-p path)
     (ansi-red "(missing)")))
 
+
 ;; ~/lisp/core/uninstall.el
+
 (defun eask-uninstall--packages(names)
   "Uninstall packages by its NAMES."
   (let* ((names (mapcar #'eask-intern names))
@@ -2703,11 +3052,14 @@ Argument VERSION is a string represent the version number of this package."
     (eask-info "(Total of %s package%s deleted, %s skipped)"
                deleted s skipped)))
 
+
 ;; ~/lisp/core/upgrade.el
+
 (defun eask-upgrade--package-version-string (pkg-desc)
   "Get package version string with color from PKG-DESC."
   (let ((version (package-desc-version pkg-desc)))
     (ansi-yellow (package-version-join version))))
+
 (defun eask-upgrade--package (pkg-desc)
   "Upgrade package using PKG-DESC."
   (let* ((name (package-desc-name pkg-desc))
@@ -2722,11 +3074,13 @@ Argument VERSION is a string represent the version number of this package."
         (package-install pkg-desc)
         (unless (eask-force-p) (package-delete old-pkg-desc)))
       "done ✓")))
+
 (defun eask-package--upgradable-p (pkg)
   "Return non-nil if PKG can be upgraded."
   (let ((current (eask-package--version pkg t))
         (latest (eask-package--version pkg nil)))
     (version-list-< current latest)))
+
 (defun eask-package--upgrades ()
   "Return a list of upgradable package description."
   (let (upgrades)
@@ -2737,6 +3091,7 @@ Argument VERSION is a string represent the version number of this package."
           (push (cadr (assq pkg package-archive-contents)) upgrades)))
       (ansi-green "done ✓"))
     upgrades))
+
 (defun eask-upgrade--package-all ()
   "Upgrade for archive packages."
   (if-let* ((upgrades (eask-package--upgrades)))
@@ -2747,30 +3102,40 @@ Argument VERSION is a string represent the version number of this package."
     (eask-msg "")
     (eask-info "(All packages are up to date)")))
 
+
 ;; ~/lisp/create/elpa.el
+
 (defconst eask-create-elpa--template-name "template-elpa"
   "Holds template project name.")
 
+
 ;; ~/lisp/create/package.el
+
 (defconst eask-create-package--template-name "template-elisp"
   "Holds template project name.")
+
 (defun eask-create-package--replace-s-in-buffer (old new)
   "Replace OLD to NEW in buffer."
   (let ((str (buffer-string)))
     (setq str (eask-s-replace old new str))
     (delete-region (point-min) (point-max))
     (insert str)))
+
 (defun eask-create-package--get-user ()
   "Return user name."
   (string-trim (shell-command-to-string "git config user.name")))
+
 (defun eask-create-package--get-mail ()
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
 
+
 ;; ~/lisp/format/elfmt.el
 (declare-function elfmt-buffer "ext:elisp-autofmt.el")
+
 (defconst eask-format-elfmt--version nil
   "`elfmt' version.")
+
 (defun eask-format-elfmt--file (filename)
   "Run elfmt on FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -2780,10 +3145,13 @@ Argument VERSION is a string represent the version number of this package."
       (save-buffer)
       (kill-buffer))))
 
+
 ;; ~/lisp/format/elisp-autofmt.el
 (declare-function elisp-autofmt-buffer "ext:elisp-autofmt.el")
+
 (defconst eask-format-elisp-autofmt--version nil
   "`elisp-autofmt' version.")
+
 (defun eask-format-elisp-autofmt--file (filename)
   "Run elisp-autofmt on FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -2793,7 +3161,9 @@ Argument VERSION is a string represent the version number of this package."
       (save-buffer)
       (kill-buffer))))
 
+
 ;; ~/lisp/generate/test/buttercup.el
+
 (defun eask-generate-test-buttercup--init (&optional name)
   "Create new test buffercup project (optional project NAME)."
   (let ((name (or name (f-filename default-directory)))
@@ -2820,9 +3190,11 @@ Argument VERSION is a string represent the version number of this package."
 ;;; %s ends here
 " test-file name test-file))))))
 
+
 ;; ~/lisp/generate/test/ecukes.el
 
 ;; ~/lisp/generate/test/ert-runner.el
+
 (defun eask-generate-test-ert-runner--test-helper (&optional name)
   "Generate test helper for NAME."
   (with-temp-file (f-join ert-runner-test-path "test-helper.el")
@@ -2832,10 +3204,13 @@ Argument VERSION is a string represent the version number of this package."
 ;;; test-helper.el ends here
 " name))))
 
+
 ;; ~/lisp/generate/test/ert.el
+
 (defvar eask-generate-test-ert-test-path
   (expand-file-name "test" default-directory)
   "The default test path.")
+
 (defun eask-generate-test-ert--init (&optional name)
   "Create new test project (optional project NAME)."
   (let* ((name (or name (file-name-nondirectory default-directory)))
@@ -2845,6 +3220,7 @@ Argument VERSION is a string represent the version number of this package."
       (ignore-errors (make-directory eask-generate-test-ert-test-path t))
       (if dir "skipped ✗" "done ✓"))
     (eask-generate-test-ert--create-test-file name)))
+
 (defun eask-generate-test-ert--create-test-file (name)
   "Generate test file by NAME."
   (let* ((test-file (concat name "-test.el"))
@@ -2860,7 +3236,9 @@ Argument VERSION is a string represent the version number of this package."
 " test-file name test-file)))
       (if ext "skipped ✗" "done ✓"))))
 
+
 ;; ~/lisp/generate/workflow/circle-ci.el
+
 (defun eask-generate-workflow-circle-ci--insert-jobs (version)
   "Insert Circle CI's jobs instruction for specific Emacs' VERSION."
   (insert "  test-ubuntu-emacs-" version ":" "\n")
@@ -2871,9 +3249,11 @@ Argument VERSION is a string represent the version number of this package."
   (insert "      - setup" "\n")
   (insert "      - test" "\n"))
 
+
 ;; ~/lisp/generate/workflow/github.el
 
 ;; ~/lisp/generate/workflow/gitlab.el
+
 (defun eask-generate-workflow-gitlab--insert-jobs (version)
   "Insert GitLab Runner's jobs instruction for specific Emacs' VERSION."
   (insert "test-" version ":" "\n")
@@ -2885,12 +3265,14 @@ Argument VERSION is a string represent the version number of this package."
   (insert "    - eask compile" "\n")
   (insert "\n"))
 
+
 ;; ~/lisp/generate/workflow/travis-ci.el
 
 ;; ~/lisp/generate/autoloads.el
 
 ;; ~/lisp/generate/ignore.el
 (declare-function gitignore-templates-names "ext:license-templates.el")
+
 (defun eask-generate-ignore--print-menu ()
   "Print all available ignore."
   (eask-msg "available via `eask generate ignore`")
@@ -2902,9 +3284,11 @@ Argument VERSION is a string represent the version number of this package."
     (eask-info "(Total of %s available ignore file%s)" (length names)
                (eask--sinr names "" "s"))))
 
+
 ;; ~/lisp/generate/license.el
 (defvar license-templates--data)
 (declare-function license-templates-keys "ext:license-templates.el")
+
 (defun eask-generate-license--print-menu ()
   "Print all available license."
   (eask-msg "available via `eask generate license`")
@@ -2918,14 +3302,17 @@ Argument VERSION is a string represent the version number of this package."
     (eask-info "(Total of %s available license%s)" (length names)
                (eask--sinr names "" "s"))))
 
+
 ;; ~/lisp/generate/pkg-file.el
 (defvar eask-generate-pkg-file--filename)
+
 (defun eask-generate-pkg-file--from-pkg-desc ()
   "Generate pkg-file from a package-descriptor."
   (let* ((name (package-desc-name eask-package-desc))
          (pkg-file (expand-file-name (format "%s-pkg.el" name))))
     (setq eask-generate-pkg-file--filename pkg-file)
     (package-generate-description-file eask-package-desc pkg-file)))
+
 (defun eask-generate-pkg-file--from-eask-file ()
   "Generate pkg-file from Eask file."
   (let* ((name (eask-guess-package-name))
@@ -2943,6 +3330,7 @@ Argument VERSION is a string represent the version number of this package."
      (pp-to-string `(define-package ,name ,version ,description ',reqs))
      nil pkg-file)))
 
+
 ;; ~/lisp/generate/recipe.el
 
 ;; ~/lisp/init/cask.el
@@ -2951,8 +3339,10 @@ Argument VERSION is a string represent the version number of this package."
 (declare-function ansi-white "ext:ansi.el")
 (declare-function -flatten "ext:dash.el")
 (declare-function cask--read "ext:cask.el")
+
 (defvar eask--cask-contents nil
   "Store Cask-file contents.")
+
 (defun eask--cask-filter-contents (name &optional contents)
   "Filter directives by NAME.
 
@@ -2960,30 +3350,39 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
   (cl-remove-if-not (lambda (prop)
                       (eq (car prop) name))
                     (or contents eask--cask-contents)))
+
 (defun eask--cask-package-name ()
   "Return package name from Cask-file."
   (nth 0 (alist-get 'package eask--cask-contents)))
+
 (defun eask--cask-package-version ()
   "Return package version from Cask-file."
   (nth 1 (alist-get 'package eask--cask-contents)))
+
 (defun eask--cask-package-description ()
   "Return package description from Cask-file."
   (nth 2 (alist-get 'package eask--cask-contents)))
+
 (defun eask--cask-package-file ()
   "Return package file from Cask-file."
   (car (alist-get 'package-file eask--cask-contents)))
+
 (defun eask--cask-files ()
   "Return files from Cask-file."
   (alist-get 'files eask--cask-contents))
+
 (defun eask--cask-package-descriptor ()
   "Return package descriptor from Cask-file."
   (car (alist-get 'package-descriptor eask--cask-contents)))
+
 (defun eask--cask-sources ()
   "Return sources from Cask-file."
   (eask--cask-filter-contents 'source))
+
 (defun eask--cask-reqs ()
   "Return dependencies from Cask-file."
   (eask--cask-filter-contents 'depends-on))
+
 (defun eask--cask-reqs-dev ()
   "Return development dependencies file from Cask-file."
   (let ((dev-scopes (eask--cask-filter-contents 'development))
@@ -2991,18 +3390,22 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
     (dolist (dev-scope dev-scopes)
       (setq deps (append deps (eask--cask-filter-contents 'depends-on (cdr dev-scope)))))
     deps))
+
 (defun eask--cask-remove-emacs-dep (list)
   "Remove dependency Emacs from dependencies LIST."
   (cl-remove-if (lambda (req)
                   (when (string= (cadr req) "emacs")
                     (caddr req)))
                 list))
+
 (defun eask--cask-reqs-no-emacs ()
   "Return dependencies from Cask-file but exclude Emacs."
   (eask--cask-remove-emacs-dep (eask--cask-reqs)))
+
 (defun eask--cask-reqs-dev-no-emacs ()
   "Return development dependencies from Cask-file but exclude Emacs."
   (eask--cask-remove-emacs-dep (eask--cask-reqs-dev)))
+
 (defun eask--cask-emacs-version ()
   "Return Emacs version from Cask-file."
   (let ((reqs (eask--cask-reqs)))
@@ -3010,6 +3413,7 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                (when (string= (cadr req) "emacs")
                  (caddr req)))
              reqs)))
+
 (defun eask--convert-cask (filename)
   "Convert Cask FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
@@ -3114,12 +3518,15 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
       (if converted "done ✓" "skipped ✗"))
     converted))
 
+
 ;; ~/lisp/init/eldev.el
+
 (defun eask-init-eldev--map-elpa (name)
   "Convert Eldev mapping to Eask mapping."
   (pcase name
     ("melpa-unstable" 'melpa)
     (_ name)))
+
 (defun eask-init-eldev--convert (filename)
   "Convert Eldev FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
@@ -3177,7 +3584,9 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
       (if converted "done ✓" "skipped ✗"))
     converted))
 
+
 ;; ~/lisp/init/keg.el
+
 (defun eask-init-keg--file-read (path)
   "Return sexp from Keg file (PATH) search from `deafult-directory'.
 If no found the Keg file, returns nil."
@@ -3204,6 +3613,7 @@ If no found the Keg file, returns nil."
         (packages . ,(nreverse (delete-dups packages)))
         (disables . ,(nreverse (delete-dups lint-disables)))
         (scripts . ,(nreverse (delete-dups scripts)))))))
+
 (defun eask-init-key--convert (filename)
   "Convert Keg FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
@@ -3287,7 +3697,9 @@ If no found the Keg file, returns nil."
       (if converted "done ✓" "skipped ✗"))
     converted))
 
+
 ;; ~/lisp/init/source.el
+
 (defun eask-init-source--convert (filename)
   "Convert elisp source FILENAME to Eask."
   (let* ((filename (expand-file-name filename))
@@ -3351,13 +3763,16 @@ If no found the Keg file, returns nil."
       (if converted "done ✓" "skipped ✗"))
     (when converted new-filename)))
 
+
 ;; ~/lisp/link/add.el
 (defvar eask-link-add--package-name    nil "Used to form package name.")
 (defvar eask-link-add--package-version nil "Used to form package name.")
+
 (defun eask-link-add--package-desc-reqs (desc)
   "Return a list of requirements from package DESC."
   (cl-remove-if (lambda (name) (string= name "emacs"))
                 (mapcar #'car (package-desc-reqs desc))))
+
 (defun eask-link-add--create (source)
   "Add link with SOURCE path."
   (let* ((dir-name (format "%s-%s" eask-link-add--package-name eask-link-add--package-version))
@@ -3372,11 +3787,14 @@ If no found the Keg file, returns nil."
     (eask-msg "")
     (eask-info "(Created link from `%s` to `%s`)" source (eask-f-filename link-path))))
 
+
 ;; ~/lisp/link/delete.el
+
 (defun eask-link-delete-symlink (path)
   "Delete symlink PATH."
   (ignore-errors (delete-file path))
   (ignore-errors (delete-directory path t)))
+
 (defun eask-link-delete--link (name)
   "Delete a link by its' NAME."
   (let* ((links (eask-link-list))
@@ -3390,24 +3808,29 @@ If no found the Keg file, returns nil."
       (eask-info "✗ No linked package name `%s`" name)
       nil)))
 
+
 ;; ~/lisp/link/list.el
+
 (defun eask-link-list ()
   "Return a list of all links."
   (mapcar
    (lambda (file)
      (cons (eask-f-filename file) (file-truename file)))
    (cl-remove-if-not #'file-symlink-p (directory-files package-user-dir t))))
+
 (defun eask--print-link (link offset)
   "Print information regarding the LINK.
 
 The argument OFFSET is used to align the result."
   (eask-println (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
 
+
 ;; ~/lisp/lint/checkdoc.el
 (defvar checkdoc-version)
 (defvar checkdoc-create-error-function)
 (declare-function checkdoc-buffer-label "ext:checkdoc.el")
 (defvar eask-lint-checkdoc--errors nil "Error flag.")
+
 (defun eask-lint-checkdoc--print-error (text start _end &optional _unfixable)
   "Print error for checkdoc.
 
@@ -3420,6 +3843,7 @@ be assigned to variable `checkdoc-create-error-function'."
     (if (eask-strict-p) (error msg) (warn msg))
     ;; Return nil because we *are* generating a buffered list of errors.
     nil))
+
 (defun eask-lint-checkdoc--file (filename)
   "Run checkdoc on FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3430,8 +3854,10 @@ be assigned to variable `checkdoc-create-error-function'."
     (checkdoc-file filename)
     (unless eask-lint-checkdoc--errors (eask-msg "No issues found"))))
 
+
 ;; ~/lisp/lint/declare.el
 (defvar check-declare-warning-buffer)
+
 (defun eask-lint-declare--file (filename)
   "Run check-declare on FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3445,8 +3871,10 @@ be assigned to variable `checkdoc-create-error-function'."
           (eask-report (string-remove-prefix "\n" (buffer-string))))
       (eask-msg "No issues found"))))
 
+
 ;; ~/lisp/lint/elint.el
 (declare-function elint-get-log-buffer "ext:elsa.el")
+
 (defun eask-lint-elint--file (filename)
   "Run elint on FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3458,10 +3886,13 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-print-log-buffer (elint-get-log-buffer))
     (kill-buffer (elint-get-log-buffer))))
 
+
 ;; ~/lisp/lint/elisp-lint.el
 (declare-function elisp-lint-file "ext:elsa.el")
+
 (defconst eask-lint-elisp-lint--version nil
   "`elisp-lint' version.")
+
 (defun eask-lint-elisp-lint--process-file (filename)
   "Process FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3477,14 +3908,17 @@ be assigned to variable `checkdoc-create-error-function'."
           ((eask-strict-p)
            (eask-error "Linting failed")))))
 
+
 ;; ~/lisp/lint/elsa.el
 (defvar elsa-global-state)
 (declare-function elsa-message-format "ext:elsa.el")
 (declare-function elsa-analyse-file "ext:elsa.el")
 (declare-function --each "ext:dash.el")
 (require 'dash nil t)
+
 (defconst eask-lint-elsa--version nil
   "Elsa version.")
+
 (defun eask-lint-elsa--analyse-file (filename)
   "Process FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3502,12 +3936,15 @@ be assigned to variable `checkdoc-create-error-function'."
                   (t (eask-log line)))))
       (eask-msg "No issues found"))))
 
+
 ;; ~/lisp/lint/indent.el
+
 (defun eask-lint-indent--undo-pos (entry)
   "Return the undo pos from ENTRY."
   (cl-typecase (car entry)
     (number (car entry))
     (string (abs (cdr entry)))))
+
 (defun eask-lint-indent--undo-infos (undo-list)
   "Return list of infos in UNDO-LIST."
   (let ((infos))
@@ -3518,6 +3955,7 @@ be assigned to variable `checkdoc-create-error-function'."
                                    (current-indentation))))
         (push (list line expected) infos)))
     infos))
+
 (defun eask-lint-indent--file (file)
   "Lint indent for FILE."
   (eask-msg "")
@@ -3538,8 +3976,10 @@ be assigned to variable `checkdoc-create-error-function'."
                          (buffer-name) line column current)))
       (eask-log "No mismatch indentation found"))))
 
+
 ;; ~/lisp/lint/keywords.el
 (require 'finder nil t)
+
 (defun eask-lint-keywords--defined (keywords)
   "Return t if KEYWORDS are defined correctly."
   (let ((available-keywords (mapcar #'car finder-known-keywords))
@@ -3549,13 +3989,16 @@ be assigned to variable `checkdoc-create-error-function'."
         (setq result t)))
     result))
 
+
 ;; ~/lisp/lint/license.el
 (require 'whitespace nil t)
+
 (defun eask-lint-license--s-match-all (contents)
   "Return t when every CONTENTS match the `buffer-string'."
   (cl-every (lambda (content)
               (string-match-p (eask-s-replace "\n" " " content) (buffer-string)))
             contents))
+
 (defun eask-lint-license--scan (file)
   "Scan the license FILE."
   (with-temp-buffer
@@ -3646,6 +4089,7 @@ be assigned to variable `checkdoc-create-error-function'."
       '("zlib" "zlib License" "Zlib"))
      (t
       '("unknown" "Unknown license" "unknown")))))
+
 (defun eask-lint-license--print-scanned (scanned)
   "Print all SCANNED license."
   (eask-msg "available via `eask lint license`")
@@ -3659,10 +4103,13 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-info "(Total of %s scanned license%s)" (length names)
                (eask--sinr names "" "s"))))
 
+
 ;; ~/lisp/lint/package.el
 (declare-function package-lint-current-buffer "ext:package-lint.el")
+
 (defconst eask-lint-package--version nil
   "`package-lint' version.")
+
 (defun eask-lint-package--file (filename)
   "Package lint FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3674,10 +4121,13 @@ be assigned to variable `checkdoc-create-error-function'."
       (kill-this-buffer)))
   (eask-print-log-buffer "*Package-Lint*"))
 
+
 ;; ~/lisp/lint/regexps.el
 (declare-function relint-buffer "ext:package-lint.el")
+
 (defconst eask-lint-regexps--relint-version nil
   "`relint' version.")
+
 (defun eask-lint-regexps--relint-file (filename)
   "Package lint FILENAME."
   (let* ((filename (expand-file-name filename))
@@ -3701,10 +4151,13 @@ be assigned to variable `checkdoc-create-error-function'."
         (eask-msg "No issues found"))
       (kill-this-buffer))))
 
+
 ;; ~/lisp/run/command.el
+
 (defun eask-run-command--desc (name)
   "Return command's description by its command's NAME."
   (car (split-string (or (documentation name) "") "\n")))
+
 (defun eask-run-command--print-commands ()
   "Print all available commands."
   (eask-msg "available via `eask run command`")
@@ -3717,10 +4170,12 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-msg "")
     (eask-info "(Total of %s available script%s)" (length keys)
                (eask--sinr keys "" "s"))))
+
 (defun eask-run-command--execute (name)
   "Execute the command by NAME."
   (eask-info "[RUN]: %s" name)
   (funcall (eask-intern name)))
+
 (defun eask-run-command--unmatched-commands (commands)
   "Return a list of COMMANDS that cannot be found in `eask-commands'."
   (let (unmatched)
@@ -3729,9 +4184,12 @@ be assigned to variable `checkdoc-create-error-function'."
         (push command unmatched)))
     unmatched))
 
+
 ;; ~/lisp/run/script.el
+
 (defconst eask-run-script--file (expand-file-name "run" eask-homedir)
   "Target file to export the `run' scripts.")
+
 (defun eask-run-script--print-scripts ()
   "Print all available scripts."
   (eask-msg "available via `eask run script`")
@@ -3744,6 +4202,7 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-msg "")
     (eask-info "(Total of %s available script%s)" (length keys)
                (eask--sinr keys "" "s"))))
+
 (defun eask-run-command--export (command)
   "Export COMMAND instruction."
   (ignore-errors (make-directory eask-homedir t))  ; generate dir `~/.eask/'
@@ -3755,6 +4214,7 @@ be assigned to variable `checkdoc-create-error-function'."
     (setq command (eask-s-replace " && " "\n" command)))
   (setq command (concat command " " (eask-rest)))
   (write-region (concat command "\n") nil eask-run-script--file t))
+
 (defun eask-run-script--unmatched-scripts (scripts)
   "Return a list of SCRIPTS that cannot be found in `eask-scripts'."
   (let (unmatched)
@@ -3763,10 +4223,13 @@ be assigned to variable `checkdoc-create-error-function'."
         (push script unmatched)))
     unmatched))
 
+
 ;; ~/lisp/source/add.el
+
 (defun eask-source-add--from-mapping (name url)
   "Return t if NAME and URL matched our database."
   (string= (eask-source-url name) url))
+
 (defun eask-source-add (name url exists)
   "Add an archive source by NAME.
 
@@ -3781,6 +4244,7 @@ Arguments EXISTS is used to print the information."
         (insert "(source " name-str " \"" url "\")\n")
       (insert "(source " name-str ")\n"))
     (eask-info "(New source `%s' added and points to `%s')" name (or url (cdr exists)))))
+
 (defun eask-source-add--write (name url exists)
   "Write source construct by NAME and URL.
 
@@ -3823,6 +4287,7 @@ The argument EXISTS is use to search for correct position to insert new source."
         (goto-char (point-max)))
       (eask-source-add name url exists)))
     (save-buffer)))
+
 (defun eask-source-add--ask-if-overwrite (name url)
   "Ask source overwrite if needed.
 
@@ -3843,7 +4308,9 @@ Do you want to overwrite it? ")
              (eask-info "(Nothing has changed, aborted)")))
     (eask-source-add--write name url nil)))
 
+
 ;; ~/lisp/source/delete.el
+
 (defun eask-source-delete (name)
   "Delete an archive source by NAME."
   (with-current-buffer (find-file eask-file)
@@ -3853,6 +4320,7 @@ Do you want to overwrite it? ")
       (eask-info "(Delete source `%s')" name))
     (save-buffer)))
 
+
 ;; ~/lisp/source/list.el
 
 ;; ~/lisp/test/activate.el
@@ -3860,6 +4328,7 @@ Do you want to overwrite it? ")
 ;; ~/lisp/test/buttercup.el
 
 ;; ~/lisp/test/ecukes.el
+
 (defun eask-test-ecukes--run (files)
   "Run ecukes on FILES.
 
@@ -3868,7 +4337,9 @@ Modified from function `ecukes-cli/run'."
   (ecukes-reporter-use ecukes-cli-reporter)
   (ecukes-run files))
 
+
 ;; ~/lisp/test/ert-runner.el
+
 (defun eask-test-ert-runner--run (fnc &rest args)
   "Run around function `ert-runner/run'.
 
@@ -3880,10 +4351,14 @@ Handle the argument ARGS when command arguments are specified."
     (setq args files))
   (apply fnc args))
 
+
 ;; ~/lisp/test/ert.el
+
 (defvar eask-test-ert--message-loop nil
   "Prevent inifinite recursive message function.")
+
 (require 'ert nil t)
+
 (defun eask-test-ert--message (fnc &rest args)
   "Colorized ert messages.
 
@@ -3903,12 +4378,15 @@ Arguments FNC and ARGS are used for advice `:around'."
         (eask-msg (ansi-green (apply #'format args))))
        (t (apply fnc args))))))
 
+
 ;; ~/lisp/test/melpazoid.el
+
 (defcustom eask-test-melpazoid-el-url
   "https://raw.githubusercontent.com/riscy/melpazoid/master/melpazoid/melpazoid.el"
   "Url path to melpazoid's elisp file."
   :type 'string
   :group 'eask)
+
 
 (provide 'eask-core)
 ;; Local Variables:
