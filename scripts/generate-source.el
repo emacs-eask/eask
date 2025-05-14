@@ -52,7 +52,6 @@
                       (insert "\n")
                       (forward-sexp)
                       (insert "\n")
-                      (forward-line 1)
                       (beginning-of-line))
                      ;; Move macro to the top, avoid macro defined too late error.
                      ((or (string-prefix-p "(defvar " line)
