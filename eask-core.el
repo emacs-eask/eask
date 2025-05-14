@@ -2169,7 +2169,6 @@ variable we use to test validation."
     (eask-msg ""))
   (setq eask-lint-first-file-p t))
 
-
 ;; ~/lisp/clean/all.el
 
 (defvar eask-no-cleaning-operation-p nil
@@ -2197,7 +2196,6 @@ variable we use to test validation."
 
 (defconst eask-clean-all--tasks-total 6
   "Count cleaning task.")
-
 
 ;; ~/lisp/clean/autoloads.el
 
@@ -2227,7 +2225,6 @@ variable we use to test validation."
                (if delete-dir "1" "0")
                (- 3 deleted))))
 
-
 ;; ~/lisp/clean/elc.el
 
 ;; ~/lisp/clean/log-file.el
@@ -2255,7 +2252,6 @@ variable we use to test validation."
                (eask--sinr deleted "" "s")
                (if delete-dir "1" "0")
                (- (length log-files) deleted))))
-
 
 ;; ~/lisp/clean/pkg-file.el
 
@@ -2364,7 +2360,6 @@ Argument LEVEL and MSG are data from the debug log signal."
     (when (and content (eask-output))
       (write-region content nil (eask-output)))))
 
-
 ;; ~/lisp/core/archives.el
 (defvar eask-archive--length-name)
 (defvar eask-archive--length-url)
@@ -2391,7 +2386,6 @@ Argument LEVEL and MSG are data from the debug log signal."
          (eask-archive--length-priority (eask-2str (eask-seq-str-max priorities))))
     (mapc #'eask-archive--print alist)))
 
-
 ;; ~/lisp/core/bump.el
 
 (defun eask-bump--version (version index)
@@ -2411,7 +2405,6 @@ Argument LEVEL and MSG are data from the debug log signal."
 (defun eask-bump--version-patch-level (version)
   "Bump VERSION patch level."
   (eask-bump--version version 2))
-
 
 ;; ~/lisp/core/cat.el
 
@@ -2496,7 +2489,6 @@ The CMD is the command to start a new Emacs session."
                (eask--sinr compiled "" "s")
                skipped)))
 
-
 ;; ~/lisp/core/concat.el
 
 ;; ~/lisp/core/docs.el
@@ -2512,7 +2504,6 @@ The CMD is the command to start a new Emacs session."
     (eask-with-verbosity 'debug
       (el2org-generate-file el-file nil 'html html-file t))))
 
-
 ;; ~/lisp/core/emacs.el
 
 ;; ~/lisp/core/eval.el
@@ -2522,7 +2513,6 @@ The CMD is the command to start a new Emacs session."
 (defun eask-exec-path--print (path)
   "Print out the PATH."
   (eask-println "%s" path))
-
 
 ;; ~/lisp/core/exec.el
 
@@ -2540,13 +2530,11 @@ The CMD is the command to start a new Emacs session."
   (write-region (getenv "PATH") nil eask-exec--exec-path-file)
   (write-region (getenv "EMACSLOADPATH") nil eask-exec--load-path-file))
 
-
 ;; ~/lisp/core/files.el
 
 (defun eask-files--print-filename (filename)
   "Print out the FILENAME."
   (eask-println "%s" filename))
-
 
 ;; ~/lisp/core/info.el
 (defvar eask-info--max-offset 0)
@@ -2572,7 +2560,6 @@ The CMD is the command to start a new Emacs session."
           (eask-println (concat "  %-" offset "s (%s)") (car dep) target-version)
           (eask-debug "    Recipe: %s" (car dep)))))))
 
-
 ;; ~/lisp/core/init.el
 
 (defun eask-init--check-filename (name)
@@ -2583,7 +2570,6 @@ The CMD is the command to start a new Emacs session."
     (let ((suffix (car (split-string name prefix t))))
       (or (null suffix)
           (string-match-p "^[.][.0-9]*$" suffix)))))
-
 
 ;; ~/lisp/core/install-deps.el
 
@@ -2641,7 +2627,6 @@ The CMD is the command to start a new Emacs session."
     (eask-info "(Total of %s file package%s installed, %s skipped)"
                installed s skipped)))
 
-
 ;; ~/lisp/core/install-vc.el
 
 (defun eask-install-vc--guess-name (file)
@@ -2683,7 +2668,6 @@ The CMD is the command to start a new Emacs session."
     (eask-msg "")
     (eask-info "(Total of %s vc package%s installed, %s skipped)"
                installed s skipped)))
-
 
 ;; ~/lisp/core/install.el
 
@@ -2744,7 +2728,6 @@ For argument FILE, please see function `package-install-file' for the details."
 
             ;; clean up temporary file
             (delete-directory temp-dir t)))))))
-
 
 ;; ~/lisp/core/keywords.el
 (require 'finder nil t)
@@ -2823,7 +2806,6 @@ is the deepness of the dependency nested level we want to go."
     (dolist (name list)
       (eask-list--print-pkg name 0 (or depth (eask-depth) 999) pkg-alist))))
 
-
 ;; ~/lisp/core/load-path.el
 
 (defun eask-load-path--print (path)
@@ -2835,7 +2817,6 @@ is the deepness of the dependency nested level we want to go."
   (cl-some (lambda (regex)
              (string-match-p regex path))
            (eask-args)))
-
 
 ;; ~/lisp/core/load.el
 
@@ -2854,7 +2835,6 @@ is the deepness of the dependency nested level we want to go."
       (cl-incf eask-loc--lines lines)
       (cl-incf eask-loc--chars chars)
       (insert (format "| %s | %s | %s |\n" file lines chars)))))
-
 
 ;; ~/lisp/core/outdated.el
 
@@ -2903,7 +2883,6 @@ Argument VERSION is a string represent the version number of this package."
   (if (eask-package-multi-p) (eask-package--packaged-file "tar")
     (eask-package--packaged-file "el")))
 
-
 ;; ~/lisp/core/recipe.el
 
 (defun eask-recipe-string ()
@@ -2926,7 +2905,6 @@ Argument VERSION is a string represent the version number of this package."
         (nconc recipe `(:files ,(append '(:defaults) eask-files))))
       recipe)))
 
-
 ;; ~/lisp/core/recompile.el
 
 ;; ~/lisp/core/refresh.el
@@ -2948,7 +2926,6 @@ Argument VERSION is a string represent the version number of this package."
     (eask-info "(Total of %s package%s reinstalled, %s skipped)"
                installed s skipped)))
 
-
 ;; ~/lisp/core/repl.el
 
 (defvar eask-repl--old-pos nil
@@ -2968,7 +2945,6 @@ Argument VERSION is a string represent the version number of this package."
     ;; Record last output position
     (setq eask-repl--old-pos (point))))
 
-
 ;; ~/lisp/core/search.el
 
 (defun eask-search--packages (query)
@@ -2978,7 +2954,6 @@ Argument VERSION is a string represent the version number of this package."
       (when (string-match-p query (eask-2str package))
         (push package result)))
     result))
-
 
 ;; ~/lisp/core/status.el
 (declare-function ansi-bright-black "ext:ansi.el")
@@ -3036,7 +3011,6 @@ Argument VERSION is a string represent the version number of this package."
   (unless (file-exists-p path)
     (ansi-red "(missing)")))
 
-
 ;; ~/lisp/core/uninstall.el
 
 (defun eask-uninstall--packages(names)
@@ -3051,7 +3025,6 @@ Argument VERSION is a string represent the version number of this package."
     (eask-msg "")
     (eask-info "(Total of %s package%s deleted, %s skipped)"
                deleted s skipped)))
-
 
 ;; ~/lisp/core/upgrade.el
 
@@ -3102,12 +3075,10 @@ Argument VERSION is a string represent the version number of this package."
     (eask-msg "")
     (eask-info "(All packages are up to date)")))
 
-
 ;; ~/lisp/create/elpa.el
 
 (defconst eask-create-elpa--template-name "template-elpa"
   "Holds template project name.")
-
 
 ;; ~/lisp/create/package.el
 
@@ -3129,7 +3100,6 @@ Argument VERSION is a string represent the version number of this package."
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
 
-
 ;; ~/lisp/format/elfmt.el
 (declare-function elfmt-buffer "ext:elisp-autofmt.el")
 
@@ -3145,7 +3115,6 @@ Argument VERSION is a string represent the version number of this package."
       (save-buffer)
       (kill-buffer))))
 
-
 ;; ~/lisp/format/elisp-autofmt.el
 (declare-function elisp-autofmt-buffer "ext:elisp-autofmt.el")
 
@@ -3160,7 +3129,6 @@ Argument VERSION is a string represent the version number of this package."
       (elisp-autofmt-buffer)
       (save-buffer)
       (kill-buffer))))
-
 
 ;; ~/lisp/generate/test/buttercup.el
 
@@ -3190,7 +3158,6 @@ Argument VERSION is a string represent the version number of this package."
 ;;; %s ends here
 " test-file name test-file))))))
 
-
 ;; ~/lisp/generate/test/ecukes.el
 
 ;; ~/lisp/generate/test/ert-runner.el
@@ -3203,7 +3170,6 @@ Argument VERSION is a string represent the version number of this package."
 
 ;;; test-helper.el ends here
 " name))))
-
 
 ;; ~/lisp/generate/test/ert.el
 
@@ -3236,7 +3202,6 @@ Argument VERSION is a string represent the version number of this package."
 " test-file name test-file)))
       (if ext "skipped ✗" "done ✓"))))
 
-
 ;; ~/lisp/generate/workflow/circle-ci.el
 
 (defun eask-generate-workflow-circle-ci--insert-jobs (version)
@@ -3248,7 +3213,6 @@ Argument VERSION is a string represent the version number of this package."
   (insert "    steps:" "\n")
   (insert "      - setup" "\n")
   (insert "      - test" "\n"))
-
 
 ;; ~/lisp/generate/workflow/github.el
 
@@ -3264,7 +3228,6 @@ Argument VERSION is a string represent the version number of this package."
   (insert "    - eask install" "\n")
   (insert "    - eask compile" "\n")
   (insert "\n"))
-
 
 ;; ~/lisp/generate/workflow/travis-ci.el
 
@@ -3284,7 +3247,6 @@ Argument VERSION is a string represent the version number of this package."
     (eask-info "(Total of %s available ignore file%s)" (length names)
                (eask--sinr names "" "s"))))
 
-
 ;; ~/lisp/generate/license.el
 (defvar license-templates--data)
 (declare-function license-templates-keys "ext:license-templates.el")
@@ -3301,7 +3263,6 @@ Argument VERSION is a string represent the version number of this package."
     (eask-msg "")
     (eask-info "(Total of %s available license%s)" (length names)
                (eask--sinr names "" "s"))))
-
 
 ;; ~/lisp/generate/pkg-file.el
 (defvar eask-generate-pkg-file--filename)
@@ -3329,7 +3290,6 @@ Argument VERSION is a string represent the version number of this package."
     (write-region
      (pp-to-string `(define-package ,name ,version ,description ',reqs))
      nil pkg-file)))
-
 
 ;; ~/lisp/generate/recipe.el
 
@@ -3518,7 +3478,6 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
       (if converted "done ✓" "skipped ✗"))
     converted))
 
-
 ;; ~/lisp/init/eldev.el
 
 (defun eask-init-eldev--map-elpa (name)
@@ -3583,7 +3542,6 @@ Optional argument CONTENTS is used for nested directives.  e.g. development."
                (setq converted t))))
       (if converted "done ✓" "skipped ✗"))
     converted))
-
 
 ;; ~/lisp/init/keg.el
 
@@ -3697,7 +3655,6 @@ If no found the Keg file, returns nil."
       (if converted "done ✓" "skipped ✗"))
     converted))
 
-
 ;; ~/lisp/init/source.el
 
 (defun eask-init-source--convert (filename)
@@ -3763,7 +3720,6 @@ If no found the Keg file, returns nil."
       (if converted "done ✓" "skipped ✗"))
     (when converted new-filename)))
 
-
 ;; ~/lisp/link/add.el
 (defvar eask-link-add--package-name    nil "Used to form package name.")
 (defvar eask-link-add--package-version nil "Used to form package name.")
@@ -3787,7 +3743,6 @@ If no found the Keg file, returns nil."
     (eask-msg "")
     (eask-info "(Created link from `%s` to `%s`)" source (eask-f-filename link-path))))
 
-
 ;; ~/lisp/link/delete.el
 
 (defun eask-link-delete-symlink (path)
@@ -3808,7 +3763,6 @@ If no found the Keg file, returns nil."
       (eask-info "✗ No linked package name `%s`" name)
       nil)))
 
-
 ;; ~/lisp/link/list.el
 
 (defun eask-link-list ()
@@ -3823,7 +3777,6 @@ If no found the Keg file, returns nil."
 
 The argument OFFSET is used to align the result."
   (eask-println (concat "  %-" (eask-2str offset) "s  %s") (car link) (cdr link)))
-
 
 ;; ~/lisp/lint/checkdoc.el
 (defvar checkdoc-version)
@@ -3854,7 +3807,6 @@ be assigned to variable `checkdoc-create-error-function'."
     (checkdoc-file filename)
     (unless eask-lint-checkdoc--errors (eask-msg "No issues found"))))
 
-
 ;; ~/lisp/lint/declare.el
 (defvar check-declare-warning-buffer)
 
@@ -3871,7 +3823,6 @@ be assigned to variable `checkdoc-create-error-function'."
           (eask-report (string-remove-prefix "\n" (buffer-string))))
       (eask-msg "No issues found"))))
 
-
 ;; ~/lisp/lint/elint.el
 (declare-function elint-get-log-buffer "ext:elsa.el")
 
@@ -3885,7 +3836,6 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-with-verbosity 'debug (elint-file filename))
     (eask-print-log-buffer (elint-get-log-buffer))
     (kill-buffer (elint-get-log-buffer))))
-
 
 ;; ~/lisp/lint/elisp-lint.el
 (declare-function elisp-lint-file "ext:elsa.el")
@@ -3907,7 +3857,6 @@ be assigned to variable `checkdoc-create-error-function'."
            (eask-msg "No issues found"))
           ((eask-strict-p)
            (eask-error "Linting failed")))))
-
 
 ;; ~/lisp/lint/elsa.el
 (defvar elsa-global-state)
@@ -3935,7 +3884,6 @@ be assigned to variable `checkdoc-create-error-function'."
                   ((string-match-p "[: ][Ww]arning:" line) (eask-warn line))
                   (t (eask-log line)))))
       (eask-msg "No issues found"))))
-
 
 ;; ~/lisp/lint/indent.el
 
@@ -3976,7 +3924,6 @@ be assigned to variable `checkdoc-create-error-function'."
                          (buffer-name) line column current)))
       (eask-log "No mismatch indentation found"))))
 
-
 ;; ~/lisp/lint/keywords.el
 (require 'finder nil t)
 
@@ -3988,7 +3935,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (when (memq (intern keyword) available-keywords)
         (setq result t)))
     result))
-
 
 ;; ~/lisp/lint/license.el
 (require 'whitespace nil t)
@@ -4103,7 +4049,6 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-info "(Total of %s scanned license%s)" (length names)
                (eask--sinr names "" "s"))))
 
-
 ;; ~/lisp/lint/package.el
 (declare-function package-lint-current-buffer "ext:package-lint.el")
 
@@ -4120,7 +4065,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (package-lint-current-buffer)
       (kill-this-buffer)))
   (eask-print-log-buffer "*Package-Lint*"))
-
 
 ;; ~/lisp/lint/regexps.el
 (declare-function relint-buffer "ext:package-lint.el")
@@ -4150,7 +4094,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (unless errors
         (eask-msg "No issues found"))
       (kill-this-buffer))))
-
 
 ;; ~/lisp/run/command.el
 
@@ -4183,7 +4126,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (unless (memq (eask-intern command) eask-commands)
         (push command unmatched)))
     unmatched))
-
 
 ;; ~/lisp/run/script.el
 
@@ -4222,7 +4164,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (unless (assoc script eask-scripts)
         (push script unmatched)))
     unmatched))
-
 
 ;; ~/lisp/source/add.el
 
@@ -4308,7 +4249,6 @@ Do you want to overwrite it? ")
              (eask-info "(Nothing has changed, aborted)")))
     (eask-source-add--write name url nil)))
 
-
 ;; ~/lisp/source/delete.el
 
 (defun eask-source-delete (name)
@@ -4319,7 +4259,6 @@ Do you want to overwrite it? ")
       (delete-region (line-beginning-position) (1+ (line-end-position)))
       (eask-info "(Delete source `%s')" name))
     (save-buffer)))
-
 
 ;; ~/lisp/source/list.el
 
@@ -4337,7 +4276,6 @@ Modified from function `ecukes-cli/run'."
   (ecukes-reporter-use ecukes-cli-reporter)
   (ecukes-run files))
 
-
 ;; ~/lisp/test/ert-runner.el
 
 (defun eask-test-ert-runner--run (fnc &rest args)
@@ -4350,7 +4288,6 @@ Handle the argument ARGS when command arguments are specified."
          (files (eask-expand-file-specs patterns)))
     (setq args files))
   (apply fnc args))
-
 
 ;; ~/lisp/test/ert.el
 
@@ -4378,7 +4315,6 @@ Arguments FNC and ARGS are used for advice `:around'."
         (eask-msg (ansi-green (apply #'format args))))
        (t (apply fnc args))))))
 
-
 ;; ~/lisp/test/melpazoid.el
 
 (defcustom eask-test-melpazoid-el-url
@@ -4386,7 +4322,6 @@ Arguments FNC and ARGS are used for advice `:around'."
   "Url path to melpazoid's elisp file."
   :type 'string
   :group 'eask)
-
 
 (provide 'eask-core)
 ;; Local Variables:
