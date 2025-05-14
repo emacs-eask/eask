@@ -1306,7 +1306,6 @@ full detials."
 (defun eask-proxy ()
   "Non-nil when flag has value (`--proxy')."
   (eask--flag-value "--proxy"))
-        ; --proxy
 
 (defun eask-http-proxy ()
   "Non-nil when flag has value (`--http-proxy')."
