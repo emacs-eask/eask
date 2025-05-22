@@ -479,6 +479,7 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   `(defun ,name nil ,@body))
 
 (require 'ansi-color nil t)
+(require 'lisp-mnt nil t)
 (require 'package nil t)
 (require 'project nil t)
 (require 'json nil t)
