@@ -80,6 +80,11 @@ Argument BODY are forms for execution."
   (declare (indent 0) (debug t))
   `(eask-with-buffer (erase-buffer) ,@body))
 
+(defmacro eask--with-no-color (&rest body)
+  "Execute forms BODY in when no color output."
+  (declare (indent 0) (debug t))
+  `(let ((ansi-inhibit-ansi t)) ,@body))
+
 (defcustom eask-elapsed-time nil
   "Log with elapsed time."
   :type 'boolean
@@ -2323,7 +2328,7 @@ information."
                               (col  . ,end-col)
                               (pos  . ,end-pos)))))
             (filename . ,filename)
-            (message . ,msg))
+            (message  . ,msg))
           (cl-case level
             (`error eask-analyze--errors)
             (`warn  eask-analyze--warnings)))))
@@ -2372,14 +2377,18 @@ Argument LEVEL and MSG are data from the debug log signal."
                  (eask-analyze--pretty-json (json-encode
                                              `((warnings . ,eask-analyze--warnings)
                                                (errors   . ,eask-analyze--errors)))))
-           (eask-msg content))
+           ;; XXX: When printing the result, no color allow.
+           (eask--with-no-color
+             (eask-msg content)))
           (eask-analyze--log  ; Plain text
            (setq content
                  (with-temp-buffer
                    (dolist (msg (reverse eask-analyze--log))
                      (insert msg "\n"))
                    (buffer-string)))
-           (mapc #'eask-msg (reverse eask-analyze--log)))
+           ;; XXX: When printing the result, no color allow.
+           (eask--with-no-color
+             (mapc #'eask-msg (reverse eask-analyze--log))))
           (t
            (eask-info "(Checked %s file%s)"
                       (length checked-files)
