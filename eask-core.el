@@ -843,6 +843,10 @@ You can pass BUFFER-OR-NAME to replace current buffer."
   (setq len (eask-2str len))
   (concat "[%" (eask-2str (length len)) "d/" len "] "))
 
+(defconst eask-package-archives-url-format
+  "https://raw.githubusercontent.com/emacs-eask/archives/master/%s/"
+  "The backup package archives url.")
+
 (defun eask--locate-archive-contents (archive)
   "Locate ARCHIVE's contents file."
   (let* ((name (cond ((consp archive) (car archive))
@@ -876,38 +880,40 @@ Arguments FNC and ARGS are used for advice `:around'."
 
 (defun eask--download-archives ()
   "If archives download failed; download it manually."
-  (dolist (archive package-archives)
-    (cl-incf eask--action-index)
-    (let* ((name (car archive))
-           (local-file (eask--locate-archive-contents archive))
-           (dir (file-name-directory local-file))      ; ~/.emacs.d/elpa/archives/{name}
-           (file (file-name-nondirectory local-file))  ; archive-contents
-           (url (format "https://raw.githubusercontent.com/emacs-eask/archives/master/%s/" name))
-           (url-file (concat url file))
-           (download-p)
-           ;; exclude local elpa
-           (local-archive-p (string= name eask--local-archive-name))
-           (fmt (eask--action-format (length package-archives))))
-      (unless (file-exists-p local-file)
-        (eask-with-verbosity-override 'log
-          (when (= 1 eask--action-index) (eask-msg ""))
-          (eask-with-progress
-            (format "  - %sDownloading %s (%s) manually... "
-                    (format fmt eask--action-index)
-                    (ansi-green name)
-                    (ansi-yellow url))
-            (eask-with-verbosity 'debug
-              (unless local-archive-p
+  (let ((archives (cl-remove-if (lambda (archive)
+                                  ;; First, exclude the `local' archive.
+                                  (equal (car archive) eask--local-archive-name))
+                                package-archives))
+        (one-download-p))
+    (dolist (archive archives)
+      (cl-incf eask--action-index)
+      (let* ((name (car archive))
+             (local-file (eask--locate-archive-contents archive))
+             (dir (file-name-directory local-file))      ; ~/.emacs.d/elpa/archives/{name}/
+             (contents (file-name-nondirectory local-file))  ; archive-contents
+             (url (format eask-package-archives-url-format name))
+             (url-file (concat url contents))
+             (download-p)
+             (fmt (eask--action-format (length archives))))
+        (unless (file-exists-p local-file)
+          (eask-with-verbosity-override 'log
+            (when (= 1 eask--action-index) (eask-println ""))
+            (eask-with-progress
+              (format "  - %sDownloading %s (%s) manually... "
+                      (format fmt eask--action-index)
+                      (ansi-green name)
+                      (ansi-yellow url))
+              (eask-with-verbosity 'debug
                 (if (url-file-exists-p url-file)
                     (progn
                       (ignore-errors (make-directory dir t))
                       (url-copy-file url-file local-file t)
-                      (setq download-p t))
-                  (eask-debug "No archive-contents found in `%s'" (ansi-green name)))))
-            (cond (download-p      "done ✓")
-                  (local-archive-p "skipped ✗")
-                  (t               "failed ✗")))))
-      (when download-p (eask-pkg-init t)))))
+                      (setq download-p t
+                            one-download-p t))
+                  (eask-debug "No archive-contents found in `%s'" (ansi-green name))))
+              (cond (download-p "done ✓")
+                    (t          "failed ✗")))))))
+    (when one-download-p (eask-pkg-init t))))
 
 (defun eask-use-legacy-package-build ()
   "Return t if using the legacy `package-build' package."
@@ -1747,8 +1753,9 @@ argument COMMAND."
   ;; On recipe
   (when eask-depends-on-recipe-p
     (eask-with-progress
-      (format "✓ Checking local archives %s... "
-              (ansi-magenta eask--local-archive-name))
+      (concat (ansi-green "✓ Checking local archives ")
+              (ansi-magenta eask--local-archive-name)
+              (ansi-green "... "))
       (eask-with-verbosity 'debug
         ;; Make sure can be customized by `source'
         (unless (assoc eask--local-archive-name package-archives)
@@ -1760,7 +1767,7 @@ argument COMMAND."
           ;; high number so user we always use the specified dependencies!
           (add-to-list 'package-archive-priorities
                        `(,eask--local-archive-name . 90) t)))
-      "done!")))
+      (ansi-green "done!"))))
 
 (defun eask--check-depends-on (recipe)
   "Return non-nil if RECIPE is invalid."
