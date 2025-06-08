@@ -617,7 +617,7 @@ will return `lint/checkdoc' with a dash between two subcommands."
 These commands will first respect the current workspace.  If the current
 workspace has no valid Eask-file; it will load global workspace instead."
   (eask-command-p '("init" "init/source" "init/cask" "init/eldev" "init/keg"
-                    "create/package" "create/elpa"
+                    "create/package" "create/elpa" "create/el-project"
                     "bump" "cat" "keywords" "repl"
                     "generate/ignore" "generate/license"
                     "test/melpazoid")))
@@ -3123,6 +3123,8 @@ Argument VERSION is a string represent the version number of this package."
         (eask-info "(Done upgrading all packages)"))
     (eask-msg "")
     (eask-info "(All packages are up to date)")))
+
+;; ~/lisp/create/el-project.el
 
 ;; ~/lisp/create/elpa.el
 
