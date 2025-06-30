@@ -4100,6 +4100,29 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-info "(Total of %s scanned license%s)" (length names)
                (eask--sinr names "" "s"))))
 
+;; ~/lisp/lint/org.el
+
+(defun eask-lint-org--print-error (file result)
+  "Print the error RESULT from FILE."
+  (let* ((data (cl-second result))
+         (filename (file-name-nondirectory file))
+         (line (elt data 0))
+         (text (elt data 2))
+         (msg (concat filename ":" line ": " text)))
+    (if (eask-strict-p) (error msg) (warn msg))))
+
+(defun eask-lint-org--file (file)
+  "Run `org-lint' on FILE."
+  (eask-msg "`%s` with org-lint" (ansi-green file))
+  (with-temp-buffer
+    (insert-file-contents file)
+    (org-mode)
+    (if-let* ((results (org-lint)))
+        (mapc (lambda (result)
+                (eask-lint-org--print-error file result))
+              results)
+      (eask-msg "No issues found"))))
+
 ;; ~/lisp/lint/package.el
 (declare-function package-lint-current-buffer "ext:package-lint.el")
 
