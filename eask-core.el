@@ -105,7 +105,7 @@ Argument BODY are forms for execution."
            (if (< elapsed eask-minimum-reported-time)
                (ignore-errors (eask-msg ,msg-end))
              (ignore-errors (eask-write ,msg-end))
-             (eask-msg (ansi-white (format " (%.3fs)" elapsed))))))
+             (eask-msg (format " (%.3fs)" elapsed)))))
      (ignore-errors (eask-write ,msg-start)) ,body
      (ignore-errors (eask-msg ,msg-end))))
 
@@ -2083,7 +2083,7 @@ Arguments FNC and ARGS are used for advice `:around'."
       (end-of-line)
       (setq max-column (max (current-column) max-column)))
     (eask-msg (concat "''" (spaces-string max-column) "''"))
-    (eask-msg (ansi-white (buffer-string)))
+    (eask-msg (buffer-string))
     (eask-msg (concat "''" (spaces-string max-column) "''"))))
 
 (defun eask-help (command &optional print-or-exit-code)
@@ -4375,18 +4375,19 @@ Handle the argument ARGS when command arguments are specified."
 
 Arguments FNC and ARGS are used for advice `:around'."
   (if eask-test-ert--message-loop (apply fnc args)
-    (let ((eask-test-ert--message-loop t))
+    (let ((eask-test-ert--message-loop t)
+          (text (ignore-errors (apply #'format args))))
       (cond
        ;; (message nil) is used to clear the minibuffer
        ;; However, format requires the first argument to be a format string
        ((null (car args))
         (apply fnc args))
-       ((string-match-p "^[ ]+FAILED " (apply #'format args))
-        (eask-msg (ansi-red (apply #'format args))))
-       ((string-match-p "^[ ]+SKIPPED " (apply #'format args))
-        (eask-msg (ansi-white (apply #'format args))))
-       ((string-match-p "^[ ]+passed " (apply #'format args))
-        (eask-msg (ansi-green (apply #'format args))))
+       ((string-match-p "^[ ]+FAILED " text)
+        (eask-msg (ansi-red text)))
+       ((string-match-p "^[ ]+SKIPPED " text)
+        (eask-msg text))
+       ((string-match-p "^[ ]+passed " text)
+        (eask-msg (ansi-green text)))
        (t (apply fnc args))))))
 
 ;; ~/lisp/test/melpazoid.el
