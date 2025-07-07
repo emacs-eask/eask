@@ -4137,7 +4137,7 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-msg "`%s` with package-lint (%s)" (ansi-green file) eask-lint-package--version)
     (with-current-buffer (find-file filename)
       (package-lint-current-buffer)
-      (kill-this-buffer)))
+      (kill-current-buffer)))
   (eask-print-log-buffer "*Package-Lint*"))
 
 ;; ~/lisp/lint/regexps.el
@@ -4167,7 +4167,7 @@ be assigned to variable `checkdoc-create-error-function'."
                    (capitalize (eask-2str severity)) msg)))
       (unless errors
         (eask-msg "No issues found"))
-      (kill-this-buffer))))
+      (kill-current-buffer))))
 
 ;; ~/lisp/run/command.el
 
