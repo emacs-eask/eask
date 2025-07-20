@@ -483,6 +483,8 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   (setq eask-commands (delete-dups eask-commands))
   `(defun ,name nil ,@body))
 
+(defconst eask-required-emacs-version "26.1"
+  "Minimum required Emacs version for this program to run.")
 (require 'ansi-color nil t)
 (require 'lisp-mnt nil t)
 (require 'package nil t)
