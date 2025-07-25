@@ -27,10 +27,6 @@
 ;;; Code:
 
 ;; ~/lisp/_prepare.el
-
-(defconst eask-required-emacs-version "26.1"
-  "The minimum Emacs version required to run Eask.")
-
 (defvar ansi-inhibit-ansi)
 (defvar github-elpa-archive-dir)
 (defvar github-elpa-recipes-dir)
@@ -43,60 +39,8 @@
 (declare-function ansi-yellow "ext:ansi.el")
 (declare-function ansi-white "ext:ansi.el")
 
-(defconst eask-is-windows (memq system-type '(cygwin windows-nt ms-dos))
-  "The system is Windows.")
-
-(defconst eask-is-mac     (eq system-type 'darwin)
-  "The system is macOS.")
-
-(defconst eask-is-linux   (eq system-type 'gnu/linux)
-  "The system is GNU Linux.")
-
-(defconst eask-is-bsd     (or eask-is-mac (eq system-type 'berkeley-unix))
-  "The system is BSD.")
-
-(defconst eask-system-type
-  (cond (eask-is-windows 'dos)
-        (eask-is-bsd     'mac)
-        (eask-is-linux   'unix)
-        (t               'unknown))
-  "Return current OS type.")
-
 (defvar eask-dot-emacs-file nil
   "Variable hold .emacs file location.")
-
-(defconst eask-has-colors (getenv "EASK_HASCOLORS")
-  "Return non-nil if terminal supports colors.")
-
-(defconst eask-homedir (getenv "EASK_HOMEDIR")
-  "Eask's home directory path.
-
-It points to the global home directory `~/.eask/'.")
-
-(defconst eask-userdir (expand-file-name "../" eask-homedir)
-  "Eask's user directory path.
-
-It points to the global user directory `~/'.")
-
-(defconst eask-package-sys-dir (expand-file-name (concat emacs-version "/elpa/")
-                                                 eask-homedir)
-  "Eask global elpa directory; it will be treated as the system-wide packages.
-
-It points to the global elpa directory `~/.eask/XX.X/elpa/'.")
-
-(defconst eask-invocation (getenv "EASK_INVOCATION")
-  "Eask's invocation program path.")
-
-(defconst eask-is-pkg (getenv "EASK_IS_PKG")
-  "Return non-nil if Eask is packaged.")
-
-(defconst eask-rest
-  (let ((args (getenv "EASK_REST_ARGS")))
-    (setq args (ignore-errors (split-string args ",")))
-    args)
-  "Eask's arguments after command separator `--'; return a list.
-
-If the argument is `-- arg0 arg1'; it will return `(arg0 arg1)'.")
 
 (defcustom eask-import-timeout 10
   "Number of seconds before timing out elisp importation attempts.
@@ -104,25 +48,6 @@ If nil, never time out."
   :type '(choice (number :tag "Number of seconds")
                  (const  :tag "Never time out" nil))
   :group 'eask)
-
-(defconst eask-argv argv
-  "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
-
-(defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
-                                  (member "-l" command-line-args)))
-  "Script currently executing.")
-
-(defconst eask-lisp-root
-  (let* ((script (ignore-errors (file-name-directory eask--script)))
-         (dir (ignore-errors (expand-file-name (concat script "../"))))
-         (basename (file-name-nondirectory (directory-file-name dir)))
-         (root (expand-file-name "/")))
-    (while (and (not (string= root dir))
-                (not (string= basename "lisp")))
-      (setq dir (expand-file-name (concat dir "../"))
-            basename (file-name-nondirectory (directory-file-name dir))))
-    dir)
-  "Source `lisp' directory; should always end with slash.")
 
 (defvar eask-loading-file-p nil
   "This became t; if we are loading script from another file and not expecting
@@ -144,9 +69,6 @@ Argument BODY are forms for execution."
   "Execute BODY with message."
   (declare (indent 0) (debug t))
   `(let (inhibit-message) ,@body))
-
-(defconst eask-buffer-name "*eask*"
-  "Buffer name is used for temporary storage throughout the life cycle.")
 
 (defmacro eask-with-buffer (&rest body)
   "Create a temporary buffer (for this program), and evaluate BODY there."
@@ -193,10 +115,6 @@ Argument BODY are forms for execution."
 (defvar eask--action-index 0
   "The index ID for each task.")
 
-(defconst eask-package-archives-url-format
-  "https://raw.githubusercontent.com/emacs-eask/archives/master/%s/"
-  "The backup package archives url.")
-
 (defvar eask--package-initialized nil
   "Flag for package initialization in global scope.")
 
@@ -242,34 +160,6 @@ current workspace.")
   "Set to t once the environment setup has done; this is used when calling
 other scripts internally.  See function `eask-call'.")
 
-(defconst eask--option-switches
-  (eask--form-options
-   '("-g" "-c" "-a" "-q" "-f" "--dev"
-     "--debug" "--strict"
-     "--allow-error"
-     "--insecure"
-     "--timestamps" "--log-level"
-     "--log-file"
-     "--elapsed-time"
-     "--no-color"
-     "--clean"
-     "--json"
-     "--number"
-     "--yes"))
-  "List of boolean type options.")
-
-(defconst eask--option-args
-  (eask--form-options
-   '("--output"
-     "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
-     "--verbose" "--silent"
-     "--depth" "--dest" "--from"))
-  "List of arguments (number/string) type options.")
-
-(defconst eask--command-list
-  (append eask--option-switches eask--option-args)
-  "List of commands to accept, so we can avoid unknown option error.")
-
 (defmacro eask--batch-mode (&rest body)
   "Execute forms BODY in batch-mode."
   (declare (indent 0) (debug t))
@@ -286,16 +176,6 @@ other scripts internally.  See function `eask-call'.")
          (push (cons cmd (lambda (&rest _))) alist))
        (setq command-switch-alist (append command-switch-alist alist))
        ,@body)))
-
-(defconst eask-file-keywords
-  '("package" "website-url" "keywords"
-    "author" "license"
-    "package-file" "package-descriptor" "files"
-    "script"
-    "source" "source-priority"
-    "depends-on" "development"
-    "exec-paths" "load-paths")
-  "List of Eask file's DSL keywords.")
 
 (defmacro eask--alias-env (&rest body)
   "Replace all Eask file functions temporary; this is only used when loading
@@ -419,22 +299,6 @@ Argument BODY are forms for execution."
                  (eask-with-verbosity 'debug (eask--load-config))
                  (eask--with-hooks ,@body))))))))))
 
-(defconst eask-source-mapping
-  `((gnu          . "https://elpa.gnu.org/packages/")
-    (nongnu       . "https://elpa.nongnu.org/nongnu/")
-    (celpa        . "https://celpa.conao3.com/packages/")
-    (jcs-elpa     . "https://jcs-emacs.github.io/jcs-elpa/packages/")
-    (marmalade    . "https://marmalade-repo.org/packages/")
-    (melpa        . "https://melpa.org/packages/")
-    (melpa-stable . "https://stable.melpa.org/packages/")
-    (org          . "https://orgmode.org/elpa/")
-    (shmelpa      . "https://shmelpa.commandlinesystems.com/packages/")
-    (ublt         . "https://elpa.ubolonton.org/packages/")
-    ;; Devel
-    (gnu-devel    . "https://elpa.gnu.org/devel/")
-    (nongnu-devel . "https://elpa.nongnu.org/nongnu-devel/"))
-  "Mapping of source name and url.")
-
 (defvar eask-package            nil)
 (defvar eask-package-desc       nil) 
 (defvar eask-package-descriptor nil)
@@ -532,12 +396,6 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   `(if (eask-reach-verbosity-p ,symbol) (eask--unsilent ,@body)
      (eask--silent ,@body)))
 
-(defconst eask--exit-code
-  `((success . 0)   ; Unused
-    (failure . 1)   ; Catchall for general errors
-    (misuse  . 2))
-  "Exit code specification.")
-
 (defvar eask--ignore-error-p nil
   "Don't trigger error when this is non-nil.")
 
@@ -558,9 +416,6 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   "Execute BODY by completely ignore errors."
   (declare (indent 0) (debug t))
   `(eask-ignore-errors (eask--silent-error ,@body)))
-
-(defconst eask-log-path ".log"
-  "Directory path to create log files.")
 
 (defcustom eask-log-file nil
   "Weather to generate log files."
@@ -628,6 +483,8 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
   (setq eask-commands (delete-dups eask-commands))
   `(defun ,name nil ,@body))
 
+(defconst eask-required-emacs-version "26.1"
+  "The minimum Emacs version required to run Eask.")
 (require 'ansi-color nil t)
 (require 'lisp-mnt nil t)
 (require 'package nil t)
@@ -643,17 +500,88 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
 (require 'rect nil t)
 (require 'subr-x nil t)
 
+(defconst eask-is-windows (memq system-type '(cygwin windows-nt ms-dos))
+  "The system is Windows.")
+
+(defconst eask-is-mac     (eq system-type 'darwin)
+  "The system is macOS.")
+
+(defconst eask-is-linux   (eq system-type 'gnu/linux)
+  "The system is GNU Linux.")
+
+(defconst eask-is-bsd     (or eask-is-mac (eq system-type 'berkeley-unix))
+  "The system is BSD.")
+
+(defconst eask-system-type
+  (cond (eask-is-windows 'dos)
+        (eask-is-bsd     'mac)
+        (eask-is-linux   'unix)
+        (t               'unknown))
+  "Return current OS type.")
+
 (defun eask--load--adv (fnc &rest args)
   "Prevent `_prepare.el' loading twice.
 
 Arguments FNC and ARGS are used for advice `:around'."
   (unless (string= (nth 0 args) (eask-script "_prepare")) (apply fnc args)))
 
+(defconst eask-has-colors (getenv "EASK_HASCOLORS")
+  "Return non-nil if terminal supports colors.")
+
+(defconst eask-homedir (getenv "EASK_HOMEDIR")
+  "Eask's home directory path.
+
+It points to the global home directory `~/.eask/'.")
+
+(defconst eask-userdir (expand-file-name "../" eask-homedir)
+  "Eask's user directory path.
+
+It points to the global user directory `~/'.")
+
+(defconst eask-package-sys-dir (expand-file-name (concat emacs-version "/elpa/")
+                                                 eask-homedir)
+  "Eask global elpa directory; it will be treated as the system-wide packages.
+
+It points to the global elpa directory `~/.eask/XX.X/elpa/'.")
+
+(defconst eask-invocation (getenv "EASK_INVOCATION")
+  "Eask's invocation program path.")
+
+(defconst eask-is-pkg (getenv "EASK_IS_PKG")
+  "Return non-nil if Eask is packaged.")
+
+(defconst eask-rest
+  (let ((args (getenv "EASK_REST_ARGS")))
+    (setq args (ignore-errors (split-string args ",")))
+    args)
+  "Eask's arguments after command separator `--'; return a list.
+
+If the argument is `-- arg0 arg1'; it will return `(arg0 arg1)'.")
+
 (defun eask-rest ()
   "Eask's arguments after command separator `--'; return a string.
 
 If the argument is `-- arg0 arg1'; it will return `arg0 arg1'."
   (mapconcat #'identity eask-rest " "))
+
+(defconst eask-argv argv
+  "This stores the real argv; the argv will soon be replaced with `(eask-args)'.")
+
+(defconst eask--script (nth 1 (or (member "-scriptload" command-line-args)
+                                  (member "-l" command-line-args)))
+  "Script currently executing.")
+
+(defconst eask-lisp-root
+  (let* ((script (ignore-errors (file-name-directory eask--script)))
+         (dir (ignore-errors (expand-file-name (concat script "../"))))
+         (basename (file-name-nondirectory (directory-file-name dir)))
+         (root (expand-file-name "/")))
+    (while (and (not (string= root dir))
+                (not (string= basename "lisp")))
+      (setq dir (expand-file-name (concat dir "../"))
+            basename (file-name-nondirectory (directory-file-name dir))))
+    dir)
+  "Source `lisp' directory; should always end with slash.")
 
 (defun eask-command ()
   "What's the current command?
@@ -840,6 +768,9 @@ and INHERIT-INPUT-METHOD see function `read-string' for more information."
   "Get column at POINT."
   (save-excursion (goto-char point) (current-column)))
 
+(defconst eask-buffer-name "*eask*"
+  "Buffer name is used for temporary storage throughout the life cycle.")
+
 (defun eask-re-seq (regexp string)
   "Get a list of all REGEXP matches in a STRING."
   (save-match-data
@@ -913,6 +844,10 @@ You can pass BUFFER-OR-NAME to replace current buffer."
   "Construct action format by LEN."
   (setq len (eask-2str len))
   (concat "[%" (eask-2str (length len)) "d/" len "] "))
+
+(defconst eask-package-archives-url-format
+  "https://raw.githubusercontent.com/emacs-eask/archives/master/%s/"
+  "The backup package archives url.")
 
 (defun eask--locate-archive-contents (archive)
   "Locate ARCHIVE's contents file."
@@ -1468,6 +1403,34 @@ Argument PROTOCAL and HOST are used to construct scheme."
   "Add --eask to all OPTIONS."
   (mapcar (lambda (elm) (concat "--eask" elm)) options))
 
+(defconst eask--option-switches
+  (eask--form-options
+   '("-g" "-c" "-a" "-q" "-f" "--dev"
+     "--debug" "--strict"
+     "--allow-error"
+     "--insecure"
+     "--timestamps" "--log-level"
+     "--log-file"
+     "--elapsed-time"
+     "--no-color"
+     "--clean"
+     "--json"
+     "--number"
+     "--yes"))
+  "List of boolean type options.")
+
+(defconst eask--option-args
+  (eask--form-options
+   '("--output"
+     "--proxy" "--http-proxy" "--https-proxy" "--no-proxy"
+     "--verbose" "--silent"
+     "--depth" "--dest" "--from"))
+  "List of arguments (number/string) type options.")
+
+(defconst eask--command-list
+  (append eask--option-switches eask--option-args)
+  "List of commands to accept, so we can avoid unknown option error.")
+
 (defun eask-self-command-p (arg)
   "Return non-nil if ARG is known internal command."
   (member arg eask--command-list))
@@ -1497,6 +1460,16 @@ If the optional argument INDEX is non-nil, return the element."
           (push arg args))))
     (setq args (reverse args))
     (if index (nth 0 args) args)))
+
+(defconst eask-file-keywords
+  '("package" "website-url" "keywords"
+    "author" "license"
+    "package-file" "package-descriptor" "files"
+    "script"
+    "source" "source-priority"
+    "depends-on" "development"
+    "exec-paths" "load-paths")
+  "List of Eask file's DSL keywords.")
 
 (defun eask--loop-file-keywords (func)
   "Loop through Eask file keywords for environment replacement.
@@ -1602,6 +1575,22 @@ This uses function `locate-dominating-file' to look up directory tree."
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
+
+(defconst eask-source-mapping
+  `((gnu          . "https://elpa.gnu.org/packages/")
+    (nongnu       . "https://elpa.nongnu.org/nongnu/")
+    (celpa        . "https://celpa.conao3.com/packages/")
+    (jcs-elpa     . "https://jcs-emacs.github.io/jcs-elpa/packages/")
+    (marmalade    . "https://marmalade-repo.org/packages/")
+    (melpa        . "https://melpa.org/packages/")
+    (melpa-stable . "https://stable.melpa.org/packages/")
+    (org          . "https://orgmode.org/elpa/")
+    (shmelpa      . "https://shmelpa.commandlinesystems.com/packages/")
+    (ublt         . "https://elpa.ubolonton.org/packages/")
+    ;; Devel
+    (gnu-devel    . "https://elpa.gnu.org/devel/")
+    (nongnu-devel . "https://elpa.nongnu.org/nongnu-devel/"))
+  "Mapping of source name and url.")
 
 (defun eask-source-url (name &optional location)
   "Get the source url by it's NAME and LOCATION."
@@ -1990,6 +1979,12 @@ For arguments MSG and ARGS, please see function `eask-msg' for the detials."
 Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
   (apply (if (eask-strict-p) #'eask-error #'eask-warn) args))
 
+(defconst eask--exit-code
+  `((success . 0)   ; Unused
+    (failure . 1)   ; Catchall for general errors
+    (misuse  . 2))
+  "Exit code specification.")
+
 (defun eask-exit-code (key)
   "Return the exit code by KEY symbol."
   (alist-get key eask--exit-code))
@@ -2028,6 +2023,9 @@ Arguments FNC and ARGS are used for advice `:around'."
       (eask--unsilent (eask-msg "%s" msg)))
     (run-hook-with-args 'eask-on-warning-hook 'warn msg))
   (eask--silent (apply fnc args)))
+
+(defconst eask-log-path ".log"
+  "Directory path to create log files.")
 
 (defun eask-files-spec ()
   "Return files spec."
@@ -2219,9 +2217,6 @@ variable we use to test validation."
 (defvar eask-no-cleaning-operation-p nil
   "Set to non-nil if there is no cleaning operation done.")
 
-(defconst eask-clean-all--tasks-total 6
-  "Count cleaning task.")
-
 (defvar eask-clean-all--tasks-count 0
   "Count cleaning task.")
 
@@ -2241,6 +2236,9 @@ variable we use to test validation."
            "skipped ✗"
          (cl-incf eask-clean-all--tasks-cleaned)
          "done ✓"))))
+
+(defconst eask-clean-all--tasks-total 6
+  "Count cleaning task.")
 
 ;; ~/lisp/clean/autoloads.el
 
@@ -3918,11 +3916,10 @@ be assigned to variable `checkdoc-create-error-function'."
 (declare-function elsa-message-format "ext:elsa.el")
 (declare-function elsa-analyse-file "ext:elsa.el")
 (declare-function --each "ext:dash.el")
+(require 'dash nil t)
 
 (defconst eask-lint-elsa--version nil
   "Elsa version.")
-
-(require 'dash nil t)
 
 (defun eask-lint-elsa--analyse-file (filename)
   "Process FILENAME."
