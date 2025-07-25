@@ -51,7 +51,7 @@
                           (string-prefix-p "(defconst " line))
                       (insert "\n")
                       (forward-sexp)
-                      (insert "\n")
+                      (insert "\n\n")
                       (beginning-of-line))
                      ;; Move macro to the top, avoid macro defined too late error.
                      ((or (string-prefix-p "(defvar " line)
@@ -59,7 +59,7 @@
                           (string-prefix-p "(declare-function " line)
                           (string-prefix-p "(defmacro " line))
                       (forward-sexp)
-                      (let* ((block   (buffer-substring start (1+ (point))))
+                      (let* ((block (buffer-substring start (1+ (point))))
                              ;; If not end with newline, add a newline
                              (end-with-nl (string-suffix-p "\n" block))
                              ;; Have newline in this block/scope.
