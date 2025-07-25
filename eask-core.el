@@ -485,6 +485,7 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
 
 (defconst eask-required-emacs-version "26.1"
   "The minimum Emacs version required to run Eask.")
+
 (require 'ansi-color nil t)
 (require 'lisp-mnt nil t)
 (require 'package nil t)
