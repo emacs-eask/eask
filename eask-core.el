@@ -791,11 +791,20 @@ and INHERIT-INPUT-METHOD see function `read-string' for more information."
 
 For arguments OLD, NEW and S; see the function `eask-s-replace'
 for more information."
-  (if-let* ((data   (eask-ansi-codes s))
-            (start  (nth 1 data))
-            (end    (nth 0 data))
-            (splits (split-string s (regexp-quote old))))
-      (mapconcat #'identity splits (concat start new end))
+  (if-let* ((splits (split-string s (regexp-quote old))))
+      (let* ((reset "\e[0m")
+             (result (nth 0 splits))
+             (index  1)
+             (last))
+        (while (< index (length splits))
+          (let* ((data (eask-ansi-codes result)))
+            (setq last (car (last data))
+                  result (concat result
+                                 (if (null last) "" reset) new last
+                                 (nth index splits))))
+          (cl-incf index))
+        ;; Just ensure the last character is reset.
+        (concat result (if (null last) "" reset)))
     (eask-s-replace old new s)))
 
 (defun eask-progress-seq (prefix sequence suffix func)
