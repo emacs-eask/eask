@@ -2623,7 +2623,9 @@ The CMD is the command to start a new Emacs session."
                                       (or (nth 0 target-version)  ; verison number
                                           "archive"))
                                      (t                "recipe"))))
-          (eask-println (concat "  %-" offset "s (%s)") (car dep) target-version)
+          (eask-println (concat "  %-" offset "s (%s)")
+                        (ansi-green (car dep))
+                        (ansi-yellow target-version))
           (eask-debug "    Recipe: %s" (car dep)))))))
 
 ;; ~/lisp/core/init.el
