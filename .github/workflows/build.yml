@@ -17,7 +17,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         repository: emacs-eask/cli
 
@@ -26,7 +26,7 @@ jobs:
         mv lisp ~/lisp
         rm -rf ~/lisp/extern
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - uses: jcs090218/setup-emacs@master
       with:

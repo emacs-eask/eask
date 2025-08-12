@@ -26,7 +26,7 @@ jobs:
       with:
         version: 'snapshot'
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Generate SVG badges (system)
       run: make generate_badges_system
