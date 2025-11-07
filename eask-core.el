@@ -2323,6 +2323,8 @@ variable we use to test validation."
 (defvar eask-analyze--log nil)
 (defvar eask-analyze--warnings nil)
 (defvar eask-analyze--errors nil)
+(defvar eask-analyze--warning-p nil)
+(defvar eask-analyze--error-p nil)
 
 (defun eask-analyze--pretty-json (json)
   "Return pretty JSON."
@@ -2330,8 +2332,9 @@ variable we use to test validation."
 
 (defun eask-analyze--load-buffer ()
   "Return the current file loading session."
-  (car (cl-remove-if-not
-        (lambda (elm) (string-prefix-p " *load*-" (buffer-name elm))) (buffer-list))))
+  (car (cl-remove-if-not (lambda (elm)
+                           (string-prefix-p " *load*-" (buffer-name elm)))
+                         (buffer-list))))
 
 (defun eask-analyze--write-json-format (level msg)
   "Prepare log for JSON format.
@@ -2382,6 +2385,10 @@ information."
 
 Argument LEVEL and MSG are data from the debug log signal."
   (unless (string= " *temp*" (buffer-name))  ; avoid error from `package-file' directive
+    (when (eq 'error level)
+      (setq eask-analyze--error-p t))
+    (when (eq 'warn level)
+      (setq eask-analyze--warning-p t))
     (with-current-buffer (or (eask-analyze--load-buffer) (buffer-name))
       (funcall
        (cond ((eask-json-p) #'eask-analyze--write-json-format)
@@ -2395,19 +2402,22 @@ Argument LEVEL and MSG are data from the debug log signal."
     (dolist (file files)
       (eask--silent-error
         (eask--save-load-eask-file file
-            (push file checked-files))))
+            (push file checked-files)
+          ;; also count files with errors in the total count
+          (push file checked-files))))
 
     ;; Print result
     (eask-msg "")
-    (cond ((and (eask-json-p)  ; JSON format
-                (or eask-analyze--warnings eask-analyze--errors))
-           (setq content
-                 (eask-analyze--pretty-json (json-encode
-                                             `((warnings . ,eask-analyze--warnings)
-                                               (errors   . ,eask-analyze--errors)))))
+    (cond ((eask-json-p)  ; JSON format
+           ;; Fill content with result.
+           (when (or eask-analyze--warnings eask-analyze--errors)
+             (setq content
+                   (eask-analyze--pretty-json (json-encode
+                                               `((warnings . ,eask-analyze--warnings)
+                                                 (errors   . ,eask-analyze--errors))))))
            ;; XXX: When printing the result, no color allow.
            (eask--with-no-color
-             (eask-msg content)))
+             (eask-msg (or content "{}"))))
           (eask-analyze--log  ; Plain text
            (setq content
                  (with-temp-buffer
@@ -2416,11 +2426,11 @@ Argument LEVEL and MSG are data from the debug log signal."
                    (buffer-string)))
            ;; XXX: When printing the result, no color allow.
            (eask--with-no-color
-             (mapc #'eask-msg (reverse eask-analyze--log))))
-          (t
-           (eask-info "(Checked %s file%s)"
-                      (length checked-files)
-                      (eask--sinr checked-files "" "s"))))
+             (mapc #'eask-msg (reverse eask-analyze--log)))))
+
+    (eask-info "(Checked %s file%s)"
+               (length checked-files)
+               (eask--sinr checked-files "" "s"))
 
     ;; Output file
     (when (and content (eask-output))
