@@ -402,6 +402,12 @@ Execute forms BODY limit by the verbosity level (SYMBOL)."
 (defvar eask-inhibit-error-message nil
   "Non-nil to stop error/warning message.")
 
+(defvar eask--has-error-p nil
+  "Non-nil if an error has occurred.")
+
+(defvar eask--has-warn-p nil
+  "Non-nil if a warning has occurred.")
+
 (defmacro eask-ignore-errors (&rest body)
   "Execute BODY without killing the process."
   (declare (indent 0) (debug t))
@@ -832,10 +838,15 @@ You can pass BUFFER-OR-NAME to replace current buffer."
   (with-current-buffer (or buffer-or-name (current-buffer))
     (goto-char (point-min))
     (while (not (eobp))
-      (let ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
-        (cond ((string-match-p "[: ][Ee]rror: " line) (eask-error line))
-              ((string-match-p "[: ][Ww]arning: " line) (eask-warn line))
-              (t (eask-log line))))
+      (let ((line (buffer-substring-no-properties (line-beginning-position)
+                                                  (line-end-position))))
+        ;; The variable `line' can contains format specifier, avoid it with `%s'!
+        (cond ((string-match-p "[: ][Ee]rror: " line)
+               (eask-error "%s" line))
+              ((string-match-p "[: ][Ww]arning: " line)
+               (eask-warn "%s" line))
+              (t
+               (eask-log "%s" line))))
       (forward-line 1))))
 
 (defun eask-delete-file (filename)
@@ -1880,7 +1891,8 @@ ELPA)."
 (defun eask--ansi (symbol string)
   "Paint STRING with color defined by log level (SYMBOL)."
   (if-let* ((ansi-function (cdr (assq symbol eask-level-color))))
-      (funcall ansi-function string)
+      ;; The `%s` is use to avoid `not enough arguments for string` error.
+      (funcall ansi-function "%s" string)
     string))
 
 (defun eask--format (prefix fmt &rest args)
@@ -1888,45 +1900,43 @@ ELPA)."
 
 Argument PREFIX is a string identify the type of this messages.  Arguments FMT
 and ARGS are used to pass through function `format'."
-  (apply #'format
-         (concat (when eask-timestamps (format-time-string "%Y-%m-%d %H:%M:%S "))
-                 (when eask-log-level (concat prefix " "))
-                 fmt)
-         args))
+  (concat (when eask-timestamps (format-time-string "%Y-%m-%d %H:%M:%S "))
+          (when eask-log-level (concat prefix " "))
+          (apply #'format fmt args)))
 
-(defun eask--msg (symbol prefix msg &rest args)
+(defun eask--msg (symbol prefix fmt &rest args)
   "If level (SYMBOL) is at or below `eask-verbosity'; then, log the message.
 
-For arguments PREFIX, MSG and ARGS, please see funtion `eask--format' for the
+For arguments PREFIX, FMT and ARGS, please see funtion `eask--format' for the
 detials."
   (eask-with-verbosity symbol
-    (let* ((string (apply #'eask--format prefix msg args))
-           (output (eask--ansi symbol string))
+    (let* ((output (apply #'eask--format prefix fmt args))
+           (output (eask--ansi symbol output))
            (output (eask--msg-displayable-kwds output))  ; Don't color, but replace it!
            (func (cl-case symbol
                    ((or error warn) symbol)
-                   (t #'message))))
+                   (t               #'message))))
       (funcall func "%s" output))))
 
-(defun eask-debug (msg &rest args)
-  "Send debug message; see function `eask--msg' for arguments MSG and ARGS."
-  (apply #'eask--msg 'debug "[DEBUG]" msg args))
+(defun eask-debug (fmt &rest args)
+  "Send debug message; see function `eask--msg' for arguments FMT and ARGS."
+  (apply #'eask--msg 'debug "[DEBUG]" fmt args))
 
-(defun eask-log (msg &rest args)
-  "Send log message; see function `eask--msg' for arguments MSG and ARGS."
-  (apply #'eask--msg 'log   "[LOG]" msg args))
+(defun eask-log (fmt &rest args)
+  "Send log message; see function `eask--msg' for arguments FMT and ARGS."
+  (apply #'eask--msg 'log   "[LOG]" fmt args))
 
-(defun eask-info (msg &rest args)
-  "Send info message; see function `eask--msg' for arguments MSG and ARGS."
-  (apply #'eask--msg 'info  "[INFO]" msg args))
+(defun eask-info (fmt &rest args)
+  "Send info message; see function `eask--msg' for arguments FMT and ARGS."
+  (apply #'eask--msg 'info  "[INFO]" fmt args))
 
-(defun eask-warn (msg &rest args)
-  "Send warn message; see function `eask--msg' for arguments MSG and ARGS."
-  (apply #'eask--msg 'warn  "[WARNING]" msg args))
+(defun eask-warn (fmt &rest args)
+  "Send warn message; see function `eask--msg' for arguments FMT and ARGS."
+  (apply #'eask--msg 'warn  "[WARNING]" fmt args))
 
-(defun eask-error (msg &rest args)
-  "Send error message; see function `eask--msg' for arguments MSG and ARGS."
-  (apply #'eask--msg 'error "[ERROR]" msg args))
+(defun eask-error (fmt &rest args)
+  "Send error message; see function `eask--msg' for arguments FMT and ARGS."
+  (apply #'eask--msg 'error "[ERROR]" fmt args))
 
 (defun eask--msg-char-displayable (char replacement s)
   "Ensure CHAR is displayable in S; if not, we fallback to REPLACEMENT
@@ -2017,8 +2027,8 @@ Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
 (defun eask--trigger-error ()
   "Trigger error event."
   (when (and (not eask--ignore-error-p)
-             (not (eask-checker-p)))  ; ignore when checking Eask-file
-    (if (eask-allow-error-p)  ; Trigger error at the right time
+             (not (eask-checker-p)))  ; Ignore when checking Eask-file.
+    (if (eask-allow-error-p)  ; Trigger error at the right time.
         (add-hook 'eask-after-command-hook #'eask--exit)
       (eask--exit))))
 
@@ -2026,6 +2036,7 @@ Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
   "On error.
 
 Arguments FNC and ARGS are used for advice `:around'."
+  (setq eask--has-error-p t)
   (let ((msg (eask--ansi 'error (apply #'format-message args))))
     (unless eask-inhibit-error-message
       (eask--unsilent (eask-msg "%s" msg)))
@@ -2037,6 +2048,7 @@ Arguments FNC and ARGS are used for advice `:around'."
   "On warn.
 
 Arguments FNC and ARGS are used for advice `:around'."
+  (setq eask--has-warn-p t)
   (let ((msg (eask--ansi 'warn (apply #'format-message args))))
     (unless eask-inhibit-error-message
       (eask--unsilent (eask-msg "%s" msg)))
@@ -3928,8 +3940,14 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-lint-first-newline)
     (eask-msg "`%s` with elint" (ansi-green file))
     (eask-with-verbosity 'debug (elint-file filename))
-    (eask-print-log-buffer (elint-get-log-buffer))
-    (kill-buffer (elint-get-log-buffer))))
+    (let ((log-buffer (elint-get-log-buffer)))
+      (eask-print-log-buffer log-buffer)
+      (kill-buffer log-buffer))))
+
+(defun eask-lint-elint--has-error-p ()
+  "Return non-nil if we should report error for exit status."
+  (and eask--has-warn-p
+       (eask-strict-p)))
 
 ;; ~/lisp/lint/elisp-lint.el
 (declare-function elisp-lint-file "ext:elsa.el")
@@ -3974,10 +3992,18 @@ be assigned to variable `checkdoc-create-error-function'."
     (if errors
         (--each (reverse errors)
           (let ((line (string-trim (concat file ":" (elsa-message-format it)))))
-            (cond ((string-match-p "[: ][Ee]rror:" line) (eask-error line))
-                  ((string-match-p "[: ][Ww]arning:" line) (eask-warn line))
+            (cond ((string-match-p "[: ][Ee]rror:" line)
+                   (eask-error line))
+                  ((string-match-p "[: ][Ww]arning:" line)
+                   (eask-warn line))
                   (t (eask-log line)))))
       (eask-msg "No issues found"))))
+
+(defun eask-lint-elsa--has-error-p ()
+  "Return non-nil if we should report error for exit status."
+  (or eask--has-error-p
+      (and eask--has-warn-p
+           (eask-strict-p))))
 
 ;; ~/lisp/lint/indent.el
 
@@ -4007,9 +4033,10 @@ be assigned to variable `checkdoc-create-error-function'."
         (bs (buffer-string)))
     (eask-with-temp-buffer (insert bs))
     (eask--silent (indent-region (point-min) (point-max)))
-    (if (/= tick (buffer-modified-tick))
+    (if-let* (((/= tick (buffer-modified-tick)))
+              (infos (eask-lint-indent--undo-infos buffer-undo-list)))
         ;; Indentation changed: warn for each line.
-        (dolist (info (eask-lint-indent--undo-infos buffer-undo-list))
+        (dolist (info infos)
           (let* ((line    (nth 0 info))
                  (column  (nth 1 info))
                  (current (eask-with-buffer
@@ -4183,6 +4210,11 @@ be assigned to variable `checkdoc-create-error-function'."
       (kill-current-buffer)))
   (eask-print-log-buffer "*Package-Lint*"))
 
+(defun eask-lint-package--has-error-p ()
+  "Return non-nil if we should report error for exit status."
+  (and eask--has-warn-p
+       (eask-strict-p)))
+
 ;; ~/lisp/lint/regexps.el
 (declare-function relint-buffer "ext:package-lint.el")
 
@@ -4199,18 +4231,24 @@ be assigned to variable `checkdoc-create-error-function'."
     (with-current-buffer (find-file filename)
       (setq errors (relint-buffer (current-buffer)))
       (dolist (err errors)
-        (let* ((msg       (nth 0 err))
-               (error-pos (nth 2 err))
-               (severity  (nth 5 err))
+        (let* ((msg       (seq-elt err 0))
+               (error-pos (seq-elt err 2))
+               (severity  (seq-elt err 7))
                (report-func (pcase severity
-                              (`error #'eask-error)
-                              (`warning #'eask-warn))))
+                              (`error   #'eask-error)
+                              (`warning #'eask-warn)
+                              (_        #'eask-info))))
           (funcall report-func "%s:%s %s: %s"
                    file (line-number-at-pos error-pos)
                    (capitalize (eask-2str severity)) msg)))
       (unless errors
         (eask-msg "No issues found"))
       (kill-current-buffer))))
+
+(defun eask-lint-regexps--has-error-p ()
+  "Return non-nil if we should report error for exit status."
+  (and eask--has-warn-p
+       (eask-strict-p)))
 
 ;; ~/lisp/run/command.el
 
