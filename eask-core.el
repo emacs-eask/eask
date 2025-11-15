@@ -297,7 +297,9 @@ Argument BODY are forms for execution."
                  (ignore-errors (make-directory package-user-dir t))
                  (eask--silent (eask-setup-paths))
                  (eask-with-verbosity 'debug (eask--load-config))
-                 (eask--with-hooks ,@body))))))))))
+                 (eask--with-hooks ,@body))))))
+         ;; Report exit stats if any.
+         (eask--handle-exit-status)))))
 
 (defvar eask-package            nil)
 (defvar eask-package-desc       nil) 
@@ -1602,6 +1604,26 @@ This uses function `locate-dominating-file' to look up directory tree."
           (load user-init-file t t)))
       (ansi-green (if inhibit-config "skipped ✗" "done ✓")))))
 
+(defun eask--error-status ()
+  "Return error status."
+  (let ((result))
+    ;; Error.
+    (when eask--has-error-p
+      (push 'error result))
+    ;; Warning.
+    (when eask--has-warn-p
+      (push (if (eask-strict-p)
+                'error
+              'warn)
+            result))
+    ;; No repeat.
+    (delete-dups result)))
+
+(defun eask--handle-exit-status ()
+  "Return non-nil if we should report error for exit status."
+  (when (memq 'error (eask--error-status))
+    (eask--exit 'failure)))
+
 (defun eask-network-insecure-p ()
   "Are we attempt to use insecure connection?"
   (eq network-security-level 'low))
@@ -2036,7 +2058,7 @@ Argument ARGS are direct arguments for functions `eask-error' or `eask-warn'."
   "On error.
 
 Arguments FNC and ARGS are used for advice `:around'."
-  (setq eask--has-error-p t)
+  (setq eask--has-error-p t)  ; Just a record.
   (let ((msg (eask--ansi 'error (apply #'format-message args))))
     (unless eask-inhibit-error-message
       (eask--unsilent (eask-msg "%s" msg)))
@@ -2048,7 +2070,7 @@ Arguments FNC and ARGS are used for advice `:around'."
   "On warn.
 
 Arguments FNC and ARGS are used for advice `:around'."
-  (setq eask--has-warn-p t)
+  (setq eask--has-warn-p t)  ; Just a record.
   (let ((msg (eask--ansi 'warn (apply #'format-message args))))
     (unless eask-inhibit-error-message
       (eask--unsilent (eask-msg "%s" msg)))
@@ -3944,11 +3966,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (eask-print-log-buffer log-buffer)
       (kill-buffer log-buffer))))
 
-(defun eask-lint-elint--has-error-p ()
-  "Return non-nil if we should report error for exit status."
-  (and eask--has-warn-p
-       (eask-strict-p)))
-
 ;; ~/lisp/lint/elisp-lint.el
 (declare-function elisp-lint-file "ext:elsa.el")
 
@@ -3998,12 +4015,6 @@ be assigned to variable `checkdoc-create-error-function'."
                    (eask-warn line))
                   (t (eask-log line)))))
       (eask-msg "No issues found"))))
-
-(defun eask-lint-elsa--has-error-p ()
-  "Return non-nil if we should report error for exit status."
-  (or eask--has-error-p
-      (and eask--has-warn-p
-           (eask-strict-p))))
 
 ;; ~/lisp/lint/indent.el
 
@@ -4210,11 +4221,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (kill-current-buffer)))
   (eask-print-log-buffer "*Package-Lint*"))
 
-(defun eask-lint-package--has-error-p ()
-  "Return non-nil if we should report error for exit status."
-  (and eask--has-warn-p
-       (eask-strict-p)))
-
 ;; ~/lisp/lint/regexps.el
 (declare-function relint-buffer "ext:package-lint.el")
 
@@ -4244,11 +4250,6 @@ be assigned to variable `checkdoc-create-error-function'."
       (unless errors
         (eask-msg "No issues found"))
       (kill-current-buffer))))
-
-(defun eask-lint-regexps--has-error-p ()
-  "Return non-nil if we should report error for exit status."
-  (and eask--has-warn-p
-       (eask-strict-p)))
 
 ;; ~/lisp/run/command.el
 
