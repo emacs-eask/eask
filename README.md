@@ -18,7 +18,7 @@ develop Eask with your elisp environment. Few important feature that
 this package can do:
 
 1. Provide auto-completion with `capf` (`auto-complete`, `company`, `corfu`, etc)
-2. Provide function signatures and display arglist (`eldoc`)
+2. Provide function signatures and display arglist (`eldoc`, etc)
 
 Generally, you would not want to call any of these functions or use any of
 these variables from your Emacs editor environment. Unless you are extending
