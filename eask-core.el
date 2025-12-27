@@ -631,7 +631,8 @@ workspace has no valid Eask-file; it will load global workspace instead."
                     "create/package" "create/elpa" "create/el-project"
                     "bump" "cat" "keywords" "repl"
                     "generate/ignore" "generate/license"
-                    "test/melpazoid")))
+                    "test/melpazoid"
+                    "util/root")))
 
 (defun eask-execution-p ()
   "Return t if the command is the execution command.
@@ -4498,6 +4499,8 @@ Arguments FNC and ARGS are used for advice `:around'."
   "Url path to melpazoid's elisp file."
   :type 'string
   :group 'eask)
+
+;; ~/lisp/util/root.el
 
 (provide 'eask-core)
 ;; Local Variables:
