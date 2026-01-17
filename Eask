@@ -1,7 +1,7 @@
 ;; -*- mode: eask; lexical-binding: t -*-
 
 (package "eask"
-         "0.12.2"
+         "0.12.3"
          "Core Eask APIs, for Eask CLI development")
 
 (website-url "https://github.com/emacs-eask/eask")
