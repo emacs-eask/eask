@@ -2628,19 +2628,6 @@ The CMD is the command to start a new Emacs session."
 
 ;; ~/lisp/core/concat.el
 
-;; ~/lisp/core/docs.el
-(require 'el2org nil t)
-
-(defun eask-docs--to-html (el-file)
-  "Generate html file from EL-FILE."
-  (interactive)
-  (let* ((filename (file-name-nondirectory el-file))
-         (html-file (expand-file-name (concat (file-name-sans-extension filename)
-                                              ".html")
-                                      eask-docs-path)))
-    (eask-with-verbosity 'debug
-      (el2org-generate-file el-file nil 'html html-file t))))
-
 ;; ~/lisp/core/emacs.el
 
 ;; ~/lisp/core/eval.el
@@ -3255,6 +3242,19 @@ Argument VERSION is a string represent the version number of this package."
 (defun eask-create-package--get-mail ()
   "Return user email."
   (string-trim (shell-command-to-string "git config user.email")))
+
+;; ~/lisp/docs/el2org.el
+(require 'el2org nil t)
+
+(defun eask-docs--to-html (el-file)
+  "Generate html file from EL-FILE."
+  (interactive)
+  (let* ((filename (file-name-nondirectory el-file))
+         (html-file (expand-file-name (concat (file-name-sans-extension filename)
+                                              ".html")
+                                      eask-docs-path)))
+    (eask-with-verbosity 'debug
+      (el2org-generate-file el-file nil 'html html-file t))))
 
 ;; ~/lisp/format/elfmt.el
 (declare-function elfmt-buffer "ext:elisp-autofmt.el")
