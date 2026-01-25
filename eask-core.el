@@ -53,6 +53,14 @@ If nil, never time out."
   "This became t; if we are loading script from another file and not expecting
 the `eask-start' execution.")
 
+(defmacro eask-add-hook (hooks &rest body)
+  "The eye candy for the function `add-hook'."
+  (declare (indent 1))
+  `(cond ((listp ,hooks)
+          (dolist (hook ,hooks)
+            (add-hook hook (lambda (&optional arg0 arg1 arg2 &rest args) ,@body))))
+         (t (add-hook ,hooks (lambda (&optional arg0 arg1 arg2 &rest args) ,@body)))))
+
 (defmacro eask-defvc< (version &rest body)
   "Define scope if Emacs version is below VERSION.
 
@@ -623,14 +631,18 @@ will return `lint/checkdoc' with a dash between two subcommands."
                 version)))
 
 (defun eask-command-p (commands)
-  "Return t if COMMANDS is the current command."
+  "Return t when the current command matches any entry in the COMMANDS list."
   (member (eask-command) (eask-listify commands)))
 
 (defun eask-special-p ()
   "Return t if the command that can be run without Eask-file existence.
 
 These commands will first respect the current workspace.  If the current
-workspace has no valid Eask-file; it will load global workspace instead."
+workspace has no valid Eask-file; it will load the Eask-file form the global
+workspace instead.
+
+If there is no valid Eask-file presented; the execution continues without
+printing the missing Eask-file message."
   (eask-command-p '("init" "init/source" "init/cask" "init/eldev" "init/keg"
                     "create/package" "create/elpa" "create/el-project"
                     "bump" "cat" "keywords" "repl"
@@ -849,7 +861,7 @@ You can pass BUFFER-OR-NAME to replace current buffer."
                                                   (line-end-position))))
         ;; The variable `line' can contains format specifier, avoid it with `%s'!
         (cond ((string-match-p "[: ][Ee]rror: " line)
-               (eask-error "%s" line))
+               (eask-ignore-errors (eask-error "%s" line)))
               ((string-match-p "[: ][Ww]arning: " line)
                (eask-warn "%s" line))
               (t
@@ -2068,6 +2080,7 @@ The argument ARGS is passed from the function `eask--error'."
          ;; Handle https://github.com/emacs-eask/cli/issues/11.
          (unless (string-prefix-p "Can't find library " (car args))
            (setq eask--has-error-p t)))
+        ;; Flag the error normally.
         (t
          (setq eask--has-error-p t)))  ; Just a record.
 
@@ -2598,21 +2611,22 @@ The CMD is the command to start a new Emacs session."
 
 (defun eask-compile--byte-compile-file (filename)
   "Byte compile FILENAME."
-  ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
-  ;; next byte-compile task.
-  (ignore-errors (kill-buffer byte-compile-log-buffer))
-  (let* ((filename (expand-file-name filename))
-         (result))
-    (eask-with-progress
-      (unless byte-compile-verbose (format "Compiling %s... " filename))
-      (eask-with-verbosity 'debug
-        (setq result (if (eask-clean-p)
-                         (eask-compile--byte-compile-file-external filename)
-                       (byte-compile-file filename))
-              result (eq result t)))
-      (unless byte-compile-verbose (if result "done ✓" "skipped ✗")))
-    (eask-compile--print-log)
-    result))
+  (eask-ignore-errors
+    ;; *Compile-Log* does not kill itself. Make sure it's clean before we do
+    ;; next byte-compile task.
+    (ignore-errors (kill-buffer byte-compile-log-buffer))
+    (let* ((filename (expand-file-name filename))
+           (result))
+      (eask-with-progress
+        (unless byte-compile-verbose (format "Compiling %s... " filename))
+        (eask-with-verbosity 'debug
+          (setq result (if (eask-clean-p)
+                           (eask-compile--byte-compile-file-external filename)
+                         (byte-compile-file filename))
+                result (eq result t)))
+        (unless byte-compile-verbose (if result "done ✓" "skipped ✗")))
+      (eask-compile--print-log)
+      result)))
 
 (defun eask-compile--files (files)
   "Compile sequence of FILES."
@@ -3267,7 +3281,7 @@ Argument VERSION is a string represent the version number of this package."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename)))
     (with-current-buffer (find-file filename)
-      (elfmt-buffer)
+      (eask-ignore-errors (elfmt-buffer))
       (save-buffer)
       (kill-buffer))))
 
@@ -3282,7 +3296,7 @@ Argument VERSION is a string represent the version number of this package."
   (let* ((filename (expand-file-name filename))
          (file (eask-root-del filename)))
     (with-current-buffer (find-file filename)
-      (elisp-autofmt-buffer)
+      (eask-ignore-errors (elisp-autofmt-buffer))
       (save-buffer)
       (kill-buffer))))
 
@@ -3960,7 +3974,7 @@ be assigned to variable `checkdoc-create-error-function'."
          (eask-lint-checkdoc--errors))
     (eask-lint-first-newline)
     (eask-msg "`%s` with checkdoc (%s)" (ansi-green file) checkdoc-version)
-    (checkdoc-file filename)
+    (eask-ignore-errors (checkdoc-file filename))
     (unless eask-lint-checkdoc--errors (eask-msg "No issues found"))))
 
 ;; ~/lisp/lint/declare.el
@@ -3974,10 +3988,13 @@ be assigned to variable `checkdoc-create-error-function'."
     (eask-lint-first-newline)
     (eask-msg "`%s` with check-declare" (ansi-green file))
     (setq errors (eask--silent (check-declare-file filename)))
-    (if errors
-        (with-current-buffer check-declare-warning-buffer
-          (eask-report (string-remove-prefix "\n" (buffer-string))))
-      (eask-msg "No issues found"))))
+    (eask-ignore-errors  ; Continue checking.
+      (if errors
+          (with-current-buffer check-declare-warning-buffer
+            (eask-report
+             (string-remove-prefix "\n"
+                                   (buffer-string))))
+        (eask-msg "No issues found")))))
 
 ;; ~/lisp/lint/elint.el
 (declare-function elint-get-log-buffer "ext:elsa.el")
@@ -3989,7 +4006,8 @@ be assigned to variable `checkdoc-create-error-function'."
          (noninteractive))
     (eask-lint-first-newline)
     (eask-msg "`%s` with elint" (ansi-green file))
-    (eask-with-verbosity 'debug (elint-file filename))
+    (eask-with-verbosity 'debug
+      (eask-ignore-errors (elint-file filename)))
     (let ((log-buffer (elint-get-log-buffer)))
       (eask-print-log-buffer log-buffer)
       (kill-buffer log-buffer))))
@@ -4007,13 +4025,14 @@ be assigned to variable `checkdoc-create-error-function'."
          success)
     (eask-msg "")
     (eask-msg "`%s` with elisp-lint (%s)" (ansi-green file) eask-lint-elisp-lint--version)
-    (eask-with-verbosity 'debug
-      (setq success (elisp-lint-file filename)))
-    ;; Report result!
-    (cond (success
-           (eask-msg "No issues found"))
-          ((eask-strict-p)
-           (eask-error "Linting failed")))))
+    (eask-ignore-errors
+      (eask-with-verbosity 'debug
+        (setq success (elisp-lint-file filename)))
+      ;; Report result!
+      (cond (success
+             (eask-msg "No issues found"))
+            ((eask-strict-p)
+             (eask-error "Linting failed"))))))
 
 ;; ~/lisp/lint/elsa.el
 (defvar elsa-global-state)
@@ -4032,17 +4051,18 @@ be assigned to variable `checkdoc-create-error-function'."
          errors)
     (eask-msg "")
     (eask-msg "`%s` with elsa (%s)" (ansi-green file) eask-lint-elsa--version)
-    (eask-with-verbosity 'debug
-      (setq errors (oref (elsa-analyse-file filename elsa-global-state) errors)))
-    (if errors
-        (--each (reverse errors)
-          (let ((line (string-trim (concat file ":" (elsa-message-format it)))))
-            (cond ((string-match-p "[: ][Ee]rror:" line)
-                   (eask-error "%s" line))
-                  ((string-match-p "[: ][Ww]arning:" line)
-                   (eask-warn "%s" line))
-                  (t (eask-log "%s" line)))))
-      (eask-msg "No issues found"))))
+    (eask-ignore-errors
+      (eask-with-verbosity 'debug
+        (setq errors (oref (elsa-analyse-file filename elsa-global-state) errors)))
+      (if errors
+          (--each (reverse errors)
+            (let ((line (string-trim (concat file ":" (elsa-message-format it)))))
+              (cond ((string-match-p "[: ][Ee]rror:" line)
+                     (eask-error "%s" line))
+                    ((string-match-p "[: ][Ww]arning:" line)
+                     (eask-warn "%s" line))
+                    (t (eask-log "%s" line)))))
+        (eask-msg "No issues found")))))
 
 ;; ~/lisp/lint/indent.el
 
@@ -4080,8 +4100,9 @@ be assigned to variable `checkdoc-create-error-function'."
                  (column  (nth 1 info))
                  (current (eask-with-buffer
                             (eask--goto-line line) (current-indentation))))
-            (eask-report "%s:%s: Expected indentation is %s but found %s"
-                         (buffer-name) line column current)))
+            (eask-ignore-errors
+              (eask-report "%s:%s: Expected indentation is %s but found %s"
+                           (buffer-name) line column current))))
       (eask-log "No mismatch indentation found"))))
 
 ;; ~/lisp/lint/keywords.el
@@ -4218,7 +4239,7 @@ be assigned to variable `checkdoc-create-error-function'."
          (line (elt data 0))
          (text (elt data 2))
          (msg (concat filename ":" line ": " text)))
-    (if (eask-strict-p) (error msg) (warn msg))))
+    (eask-ignore-errors (eask-report "%s" msg))))
 
 (defun eask-lint-org--file (file)
   "Run `org-lint' on FILE."
@@ -4272,9 +4293,10 @@ be assigned to variable `checkdoc-create-error-function'."
                               (`error   #'eask-error)
                               (`warning #'eask-warn)
                               (_        #'eask-info))))
-          (funcall report-func "%s:%s %s: %s"
-                   file (line-number-at-pos error-pos)
-                   (capitalize (eask-2str severity)) msg)))
+          (eask-ignore-errors
+            (funcall report-func "%s:%s %s: %s"
+                     file (line-number-at-pos error-pos)
+                     (capitalize (eask-2str severity)) msg))))
       (unless errors
         (eask-msg "No issues found"))
       (kill-current-buffer))))
